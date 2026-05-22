@@ -554,7 +554,6 @@
     </div>
     <div class="topbar-time" id="clock">--:--:--</div>
     <div id="user-info" style="display:none;font-size:11px;color:var(--text3);font-family:var(--font-mono)"></div>
-    <button id="admin-btn" onclick="openAdminModal()" style="display:none;padding:5px 12px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:6px;color:var(--gold);font-size:11px;cursor:pointer;font-family:var(--font-sans)">⚙ 관리</button>
     <button onclick="doLogout()" style="padding:5px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:11px;cursor:pointer;font-family:var(--font-sans)">로그아웃</button>
   </div>
 
@@ -1113,21 +1112,6 @@
 
 </div>
 
-<!-- 관리자 API 키 모달 -->
-<div id="admin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1500;align-items:center;justify-content:center">
-  <div style="background:#111318;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:28px;width:440px;max-width:90vw">
-    <div style="font-family:'DM Serif Display',serif;font-size:16px;color:#F0EDE6;margin-bottom:6px">API 키 관리</div>
-    <div style="font-size:12px;color:#5A6070;margin-bottom:20px">저장 즉시 모든 로그인 사용자에게 실시간 데이터가 반영됩니다.</div>
-    <div style="font-size:11px;color:#9AA0B0;margin-bottom:6px;letter-spacing:0.1em;text-transform:uppercase">Twelve Data API 키</div>
-    <input type="password" id="admin-td-key" placeholder="API 키 입력..."
-      style="width:100%;background:#181C22;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 14px;color:#F0EDE6;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;margin-bottom:20px;box-sizing:border-box">
-    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
-      <div id="admin-save-msg" style="flex:1;font-size:12px;color:#2ECC8A;display:none">✓ 저장 완료</div>
-      <button onclick="closeAdminModal()" style="padding:8px 16px;background:transparent;border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#9AA0B0;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif">취소</button>
-      <button onclick="saveAdminKey()" style="padding:8px 16px;background:#C9A84C;border:none;border-radius:7px;color:#0A0C0F;font-weight:600;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif">저장</button>
-    </div>
-  </div>
-</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -1159,14 +1143,12 @@ auth.onAuthStateChanged(async user => {
     document.getElementById('auth-overlay').style.display = 'none';
     document.getElementById('user-info').style.display = 'block';
     document.getElementById('user-info').textContent = user.email;
-    if (currentRole === 'admin') document.getElementById('admin-btn').style.display = 'block';
 
-    await loadApiKeyAndFetch();
+    fetchMarketData();
   } else {
     currentUser = null;
     document.getElementById('auth-overlay').style.display = 'flex';
     document.getElementById('user-info').style.display = 'none';
-    document.getElementById('admin-btn').style.display = 'none';
     setTdStatus('로그인 후 자동 연결', 'var(--text3)');
   }
 });
@@ -1240,40 +1222,6 @@ function authErrMsg(code) {
   })[code] || '오류가 발생했습니다. 다시 시도해주세요.';
 }
 
-// 관리자 모달
-function openAdminModal()  { document.getElementById('admin-modal').style.display = 'flex'; }
-function closeAdminModal() {
-  document.getElementById('admin-modal').style.display = 'none';
-  document.getElementById('admin-save-msg').style.display = 'none';
-}
-async function saveAdminKey() {
-  const key = document.getElementById('admin-td-key').value.trim();
-  if (!key) return;
-  await db.collection('settings').doc('api').set({
-    tdKey: key,
-    updatedBy: currentUser.email,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  tdKey = key;
-  document.getElementById('admin-save-msg').style.display = 'block';
-  fetchMarketData();
-}
-
-// Firestore에서 API 키 로드 후 데이터 수신
-async function loadApiKeyAndFetch() {
-  try {
-    const doc = await db.collection('settings').doc('api').get();
-    if (doc.exists && doc.data().tdKey) {
-      tdKey = doc.data().tdKey;
-      setTdStatus('연결 중...', 'var(--text3)');
-      fetchMarketData();
-    } else {
-      setTdStatus(currentRole === 'admin' ? '⚙ 관리 버튼에서 API 키를 등록하세요' : '관리자가 API 키를 설정 중입니다', 'var(--text3)');
-    }
-  } catch(e) {
-    setTdStatus('연결 오류', 'var(--red)');
-  }
-}
 
 // Clock
 function updateClock() {
@@ -1337,8 +1285,7 @@ makeMiniChart('chart-kosdaq',  755,   6, '#E05252', 'rgba(224,82,82,0.08)');
 makeMiniChart('chart-sp500',  5260,  28, '#5B8FE8', 'rgba(91,143,232,0.08)');
 makeMiniChart('chart-nasdaq', 16550, 90, '#2ECC8A', 'rgba(46,204,138,0.08)');
 
-// ── Twelve Data 실시간 연동 ──
-let tdKey = '';
+// ── Yahoo Finance 실시간 연동 (API 키 불필요) ──
 
 function setTdStatus(msg, color) {
   const el = document.getElementById('td-status');
@@ -1351,129 +1298,119 @@ function fmtUsd(n) { return '$' + parseFloat(n).toFixed(2); }
 function fmtPct(n) { return (parseFloat(n) >= 0 ? '▲ ' : '▼ ') + Math.abs(parseFloat(n)).toFixed(2) + '%'; }
 function isUp(n)   { return parseFloat(n) >= 0; }
 
+async function fetchYF(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1mo`;
+  try {
+    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+    const d = await r.json();
+    return d.chart?.result?.[0] || null;
+  } catch(e) { return null; }
+}
+
+function parseYF(result) {
+  if (!result) return null;
+  const m = result.meta;
+  const closes = (result.indicators?.quote?.[0]?.close || []).filter(v => v != null);
+  return {
+    price:  m.regularMarketPrice,
+    change: m.regularMarketChange ?? (m.regularMarketPrice - (m.previousClose || m.chartPreviousClose || m.regularMarketPrice)),
+    pct:    m.regularMarketChangePercent ?? 0,
+    volume: m.regularMarketVolume ?? 0,
+    closes
+  };
+}
+
 async function fetchMarketData() {
-  if (!tdKey) return;
-  const B = 'https://api.twelvedata.com';
+  setTdStatus('실시간 데이터 로딩 중...', 'var(--text3)');
 
-  // 1. 주요 지수
-  try {
-    const r = await fetch(`${B}/quote?symbol=KOSPI,KOSDAQ,SPX,IXIC&apikey=${tdKey}`);
-    const d = await r.json();
-    console.log('[TwelveData] 지수 응답:', d);
+  // 1. 주요 지수 — 병렬 fetch
+  const [kospiR, kosdaqR, spxR, ixicR] = await Promise.all([
+    fetchYF('^KS11'), fetchYF('^KQ11'), fetchYF('^GSPC'), fetchYF('^IXIC')
+  ]);
 
-    if (d.status === 'error') {
-      setTdStatus('API 오류: ' + d.message, 'var(--red)'); return;
-    }
+  const idxMap = [
+    [parseYF(kospiR),  'kospi',  fmtKrw],
+    [parseYF(kosdaqR), 'kosdaq', fmtKrw],
+    [parseYF(spxR),    'sp500',  v => parseFloat(v).toLocaleString('en-US', {minimumFractionDigits:2})],
+    [parseYF(ixicR),   'nasdaq', v => parseFloat(v).toLocaleString('en-US', {minimumFractionDigits:2})],
+  ];
+  let updated = 0;
+  idxMap.forEach(([q, id, fmt]) => {
+    if (!q) return;
+    document.getElementById(`${id}-val`).textContent = fmt(q.price);
+    const el = document.getElementById(`${id}-chg`);
+    el.textContent = fmtPct(q.pct);
+    el.className = `card-change ${isUp(q.pct) ? 'up' : 'down'}`;
+    updated++;
+  });
+  setTdStatus(updated > 0 ? '✓ 실시간 연결됨' : '데이터 로딩 실패 — 새로고침 해주세요', updated > 0 ? 'var(--green)' : 'var(--red)');
 
-    const map = [
-      [d.KOSPI,  'kospi',  fmtKrw],
-      [d.KOSDAQ, 'kosdaq', fmtKrw],
-      [d.SPX,    'sp500',  v => parseFloat(v).toLocaleString('en-US', {minimumFractionDigits:2})],
-      [d.IXIC,   'nasdaq', v => parseFloat(v).toLocaleString('en-US', {minimumFractionDigits:2})],
-    ];
-    let updated = 0;
-    map.forEach(([q, id, fmt]) => {
-      if (!q || q.status === 'error') { console.warn('[TwelveData]', id, '응답 오류:', q); return; }
-      document.getElementById(`${id}-val`).textContent = fmt(q.close);
-      const el = document.getElementById(`${id}-chg`);
-      el.textContent = fmtPct(q.percent_change);
-      el.className = `card-change ${isUp(q.percent_change) ? 'up' : 'down'}`;
-      updated++;
+  // 미니 차트 업데이트
+  const chartCfg = [
+    [parseYF(kospiR),  'chart-kospi',  '#C9A84C', 'rgba(201,168,76,0.08)'],
+    [parseYF(kosdaqR), 'chart-kosdaq', '#E05252', 'rgba(224,82,82,0.08)'],
+    [parseYF(spxR),    'chart-sp500',  '#5B8FE8', 'rgba(91,143,232,0.08)'],
+    [parseYF(ixicR),   'chart-nasdaq', '#2ECC8A', 'rgba(46,204,138,0.08)'],
+  ];
+  chartCfg.forEach(([q, id, color, fill]) => {
+    if (!q?.closes?.length) return;
+    const el = document.getElementById(id);
+    const existing = Chart.getChart(el);
+    if (existing) existing.destroy();
+    new Chart(el.getContext('2d'), {
+      type:'line',
+      data:{labels: q.closes.map((_,i)=>i), datasets:[{data:q.closes, borderColor:color, borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, backgroundColor:fill}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{enabled:false}}, scales:{x:{display:false},y:{display:false}}}
     });
-    setTdStatus(updated > 0 ? `✓ 실시간 연결됨 (${updated}/4 지수)` : 'API 응답 오류 — 콘솔 확인', updated > 0 ? 'var(--green)' : 'var(--red)');
-  } catch(e) {
-    console.error('[TwelveData] 지수 fetch 실패:', e);
-    setTdStatus('네트워크 오류: ' + e.message, 'var(--red)');
-    return;
-  }
+  });
 
-  // 2. 국내 주요 종목
-  try {
-    const syms = '005930:KRX,000660:KRX,035420:KRX,051910:KRX,006400:KRX,035720:KRX,028260:KRX,003550:KRX';
-    const r = await fetch(`${B}/quote?symbol=${syms}&apikey=${tdKey}`);
-    const d = await r.json();
-    console.log('[TwelveData] 국내주식 응답:', d);
-    const names = {'005930':'삼성전자','000660':'SK하이닉스','035420':'NAVER','051910':'LG화학','006400':'삼성SDI','035720':'카카오','028260':'삼성물산','003550':'LG'};
-    const pers  = {'005930':'15.2','000660':'28.4','035420':'32.1','051910':'18.7','006400':'22.3','035720':'41.2','028260':'12.4','003550':'9.8'};
-    const dt = document.getElementById('domestic-table');
-    let rows = '<tr><th>종목코드</th><th>종목명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>거래량</th><th>시가총액</th><th>PER</th><th>추세</th></tr>';
-    let hasData = false;
-    Object.entries(d).forEach(([sym, q]) => {
-      if (!q || q.status === 'error') return;
-      hasData = true;
-      const code = sym.split(':')[0];
-      const up = isUp(q.change);
-      rows += `<tr>
-        <td class="ticker">${code}</td>
-        <td style="color:var(--text)">${names[code]||code}</td>
-        <td class="num">${fmtKrw(q.close)}</td>
-        <td class="${up?'up-text':'down-text'}">${up?'▲':'▼'} ${fmtKrw(Math.abs(q.change))}</td>
-        <td class="${up?'up-text':'down-text'}">${fmtPct(q.percent_change)}</td>
-        <td class="num" style="color:var(--text2)">${parseInt(q.volume).toLocaleString('ko-KR')}</td>
-        <td class="num" style="color:var(--text2)">—</td>
-        <td class="num" style="color:var(--text2)">${pers[code]||'—'}</td>
-        <td>${generateSparkSVG(up)}</td>
-      </tr>`;
-    });
-    if (hasData) dt.innerHTML = rows;
-  } catch(e) { console.error('[TwelveData] 국내주식 오류:', e); }
+  // 2. 국내 주요 종목 — 병렬 fetch
+  const krSyms = ['005930.KS','000660.KS','035420.KS','051910.KS','006400.KS','035720.KS','028260.KS','003550.KS'];
+  const krNames = {'005930.KS':'삼성전자','000660.KS':'SK하이닉스','035420.KS':'NAVER','051910.KS':'LG화학','006400.KS':'삼성SDI','035720.KS':'카카오','028260.KS':'삼성물산','003550.KS':'LG'};
+  const krPer   = {'005930.KS':'15.2','000660.KS':'28.4','035420.KS':'32.1','051910.KS':'18.7','006400.KS':'22.3','035720.KS':'41.2','028260.KS':'12.4','003550.KS':'9.8'};
+  const krResults = await Promise.all(krSyms.map(s => fetchYF(s)));
+  const dt = document.getElementById('domestic-table');
+  let krRows = '<tr><th>종목코드</th><th>종목명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>거래량</th><th>시가총액</th><th>PER</th><th>추세</th></tr>';
+  krResults.forEach((r, i) => {
+    const q = parseYF(r); if (!q) return;
+    const sym = krSyms[i], code = sym.replace('.KS',''), up = isUp(q.pct);
+    krRows += `<tr>
+      <td class="ticker">${code}</td>
+      <td style="color:var(--text)">${krNames[sym]||code}</td>
+      <td class="num">${fmtKrw(q.price)}</td>
+      <td class="${up?'up-text':'down-text'}">${up?'▲':'▼'} ${fmtKrw(Math.abs(q.change))}</td>
+      <td class="${up?'up-text':'down-text'}">${fmtPct(q.pct)}</td>
+      <td class="num" style="color:var(--text2)">${parseInt(q.volume).toLocaleString('ko-KR')}</td>
+      <td class="num" style="color:var(--text2)">—</td>
+      <td class="num" style="color:var(--text2)">${krPer[sym]||'—'}</td>
+      <td>${generateSparkSVG(up)}</td>
+    </tr>`;
+  });
+  dt.innerHTML = krRows;
 
-  // 3. 해외 주요 종목
-  try {
-    const syms = 'NVDA,AAPL,MSFT,GOOGL,TSLA,META,AMZN';
-    const r = await fetch(`${B}/quote?symbol=${syms}&apikey=${tdKey}`);
-    const d = await r.json();
-    console.log('[TwelveData] 해외주식 응답:', d);
-    const names   = {NVDA:'NVIDIA',AAPL:'Apple',MSFT:'Microsoft',GOOGL:'Alphabet',TSLA:'Tesla',META:'Meta',AMZN:'Amazon'};
-    const targets = {NVDA:'$1,100',AAPL:'$220',MSFT:'$480',GOOGL:'$200',TSLA:'$220',META:'$560',AMZN:'$220'};
-    const gt = document.getElementById('global-table');
-    let rows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총(B)</th><th>PER</th><th>목표가</th><th>추세</th></tr>';
-    let hasData = false;
-    Object.entries(d).forEach(([sym, q]) => {
-      if (!q || q.status === 'error') return;
-      hasData = true;
-      const up = isUp(q.change);
-      rows += `<tr>
-        <td class="ticker">${sym}</td>
-        <td style="color:var(--text)">${names[sym]||sym}</td>
-        <td class="num">${fmtUsd(q.close)}</td>
-        <td class="${up?'up-text':'down-text'}">${up?'▲':'▼'} $${Math.abs(parseFloat(q.change)).toFixed(2)}</td>
-        <td class="${up?'up-text':'down-text'}">${fmtPct(q.percent_change)}</td>
-        <td class="num" style="color:var(--text2)">—</td>
-        <td class="num" style="color:var(--text2)">—</td>
-        <td class="num" style="color:var(--green)">${targets[sym]||'—'}</td>
-        <td>${generateSparkSVG(up)}</td>
-      </tr>`;
-    });
-    if (hasData) gt.innerHTML = rows;
-  } catch(e) { console.error('[TwelveData] 해외주식 오류:', e); }
-
-  // 4. 미니 차트용 30일 시계열
-  try {
-    const r = await fetch(`${B}/time_series?symbol=KOSPI,KOSDAQ,SPX,IXIC&interval=1day&outputsize=30&apikey=${tdKey}`);
-    const d = await r.json();
-    console.log('[TwelveData] 시계열 응답:', d);
-    const cfg = {
-      KOSPI:  {id:'chart-kospi',  color:'#C9A84C', fill:'rgba(201,168,76,0.08)'},
-      KOSDAQ: {id:'chart-kosdaq', color:'#E05252', fill:'rgba(224,82,82,0.08)'},
-      SPX:    {id:'chart-sp500',  color:'#5B8FE8', fill:'rgba(91,143,232,0.08)'},
-      IXIC:   {id:'chart-nasdaq', color:'#2ECC8A', fill:'rgba(46,204,138,0.08)'},
-    };
-    Object.entries(cfg).forEach(([sym, c]) => {
-      const series = d[sym];
-      if (!series || !series.values) return;
-      const vals   = series.values.map(v => parseFloat(v.close)).reverse();
-      const labels = series.values.map(v => v.datetime).reverse();
-      const el = document.getElementById(c.id);
-      const existing = Chart.getChart(el);
-      if (existing) existing.destroy();
-      new Chart(el.getContext('2d'), {
-        type:'line',
-        data:{labels, datasets:[{data:vals, borderColor:c.color, borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, backgroundColor:c.fill}]},
-        options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{enabled:false}}, scales:{x:{display:false},y:{display:false}}}
-      });
-    });
-  } catch(e) { console.error('[TwelveData] 시계열 오류:', e); }
+  // 3. 해외 주요 종목 — 병렬 fetch
+  const usSyms    = ['NVDA','AAPL','MSFT','GOOGL','TSLA','META','AMZN'];
+  const usNames   = {NVDA:'NVIDIA',AAPL:'Apple',MSFT:'Microsoft',GOOGL:'Alphabet',TSLA:'Tesla',META:'Meta',AMZN:'Amazon'};
+  const usTargets = {NVDA:'$1,100',AAPL:'$220',MSFT:'$480',GOOGL:'$200',TSLA:'$220',META:'$560',AMZN:'$220'};
+  const usResults = await Promise.all(usSyms.map(s => fetchYF(s)));
+  const gt = document.getElementById('global-table');
+  let usRows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총(B)</th><th>PER</th><th>목표가</th><th>추세</th></tr>';
+  usResults.forEach((r, i) => {
+    const q = parseYF(r); if (!q) return;
+    const sym = usSyms[i], up = isUp(q.pct);
+    usRows += `<tr>
+      <td class="ticker">${sym}</td>
+      <td style="color:var(--text)">${usNames[sym]||sym}</td>
+      <td class="num">${fmtUsd(q.price)}</td>
+      <td class="${up?'up-text':'down-text'}">${up?'▲':'▼'} $${Math.abs(q.change).toFixed(2)}</td>
+      <td class="${up?'up-text':'down-text'}">${fmtPct(q.pct)}</td>
+      <td class="num" style="color:var(--text2)">—</td>
+      <td class="num" style="color:var(--text2)">—</td>
+      <td class="num" style="color:var(--green)">${usTargets[sym]||'—'}</td>
+      <td>${generateSparkSVG(up)}</td>
+    </tr>`;
+  });
+  gt.innerHTML = usRows;
 }
 
 // Portfolio Chart
