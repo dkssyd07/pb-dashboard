@@ -553,18 +553,18 @@
       <div class="pulse red"></div> NYSE 마감
     </div>
     <div class="topbar-time" id="clock">--:--:--</div>
+    <div id="user-info" style="display:none;font-size:11px;color:var(--text3);font-family:var(--font-mono)"></div>
+    <button id="admin-btn" onclick="openAdminModal()" style="display:none;padding:5px 12px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:6px;color:var(--gold);font-size:11px;cursor:pointer;font-family:var(--font-sans)">⚙ 관리</button>
+    <button onclick="doLogout()" style="padding:5px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:11px;cursor:pointer;font-family:var(--font-sans)">로그아웃</button>
   </div>
 
   <div class="content">
 
     <!-- DASHBOARD PAGE -->
     <div class="page active" id="page-dashboard">
-      <div id="td-key-banner" style="background:rgba(91,143,232,0.08);border:1px solid rgba(91,143,232,0.2);border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:12px;color:var(--text2)">
-        <span>📡</span>
-        <span>실시간 시세</span>
-        <input type="password" class="api-key-input" id="tdKeyInput" placeholder="Twelve Data API 키 입력..." style="max-width:300px">
-        <button class="btn btn-gold" onclick="saveTdKey()" style="font-size:11px;padding:5px 12px">연결</button>
-        <span id="td-status" style="color:var(--text3)">미연결 — 샘플 데이터 표시 중</span>
+      <div style="background:rgba(91,143,232,0.06);border:1px solid rgba(91,143,232,0.15);border-radius:8px;padding:8px 16px;display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:12px">
+        <span style="color:var(--text3)">📡 실시간 시세</span>
+        <span id="td-status" style="color:var(--text3)">로그인 후 자동 연결</span>
       </div>
       <div class="grid-4">
         <div class="card">
@@ -1029,9 +1029,156 @@
   </div>
 </div>
 
+<!-- 로그인 오버레이 -->
+<div id="auth-overlay" style="position:fixed;inset:0;background:rgba(10,12,15,0.97);z-index:2000;display:flex;align-items:center;justify-content:center;flex-direction:column">
+  <div style="font-family:'DM Serif Display',serif;font-size:38px;color:#C9A84C;letter-spacing:0.08em;margin-bottom:4px">EGY</div>
+  <div style="font-size:10px;color:#5A6070;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:40px">Investment Advisory</div>
+  <div style="background:#111318;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:36px;width:340px">
+    <div id="auth-error" style="display:none;padding:8px 12px;background:rgba(224,82,82,0.12);border:1px solid rgba(224,82,82,0.3);border-radius:6px;font-size:12px;color:#E05252;margin-bottom:14px"></div>
+    <input id="auth-email" type="email" placeholder="이메일" autocomplete="email"
+      style="width:100%;display:block;background:#181C22;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 14px;color:#F0EDE6;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:10px;box-sizing:border-box">
+    <input id="auth-pw" type="password" placeholder="비밀번호" autocomplete="current-password"
+      style="width:100%;display:block;background:#181C22;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 14px;color:#F0EDE6;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:18px;box-sizing:border-box">
+    <button onclick="doLogin()" style="width:100%;display:block;background:#C9A84C;border:none;border-radius:8px;padding:11px;color:#0A0C0F;font-weight:600;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px">로그인</button>
+    <button onclick="doSignup()" style="width:100%;display:block;background:transparent;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:11px;color:#9AA0B0;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">회원가입</button>
+  </div>
+  <div style="margin-top:20px;font-size:11px;color:#5A6070">EGY Investment Advisory — 내부 전용 시스템</div>
+</div>
+
+<!-- 관리자 API 키 모달 -->
+<div id="admin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1500;align-items:center;justify-content:center">
+  <div style="background:#111318;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:28px;width:440px;max-width:90vw">
+    <div style="font-family:'DM Serif Display',serif;font-size:16px;color:#F0EDE6;margin-bottom:6px">API 키 관리</div>
+    <div style="font-size:12px;color:#5A6070;margin-bottom:20px">저장 즉시 모든 로그인 사용자에게 실시간 데이터가 반영됩니다.</div>
+    <div style="font-size:11px;color:#9AA0B0;margin-bottom:6px;letter-spacing:0.1em;text-transform:uppercase">Twelve Data API 키</div>
+    <input type="password" id="admin-td-key" placeholder="API 키 입력..."
+      style="width:100%;background:#181C22;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 14px;color:#F0EDE6;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;margin-bottom:20px;box-sizing:border-box">
+    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
+      <div id="admin-save-msg" style="flex:1;font-size:12px;color:#2ECC8A;display:none">✓ 저장 완료</div>
+      <button onclick="closeAdminModal()" style="padding:8px 16px;background:transparent;border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#9AA0B0;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif">취소</button>
+      <button onclick="saveAdminKey()" style="padding:8px 16px;background:#C9A84C;border:none;border-radius:7px;color:#0A0C0F;font-weight:600;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif">저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
+// ── Firebase 초기화 ──
+firebase.initializeApp({
+  apiKey: "AIzaSyD6GtVUn19WyUzqOwn2Rm9Gn3aN8Al7DwM",
+  authDomain: "egy-investment.firebaseapp.com",
+  projectId: "egy-investment",
+  storageBucket: "egy-investment.firebasestorage.app",
+  messagingSenderId: "589541238445",
+  appId: "1:589541238445:web:b11bcb7d1a61f8487c0824"
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+let currentUser = null;
+let currentRole = 'user';
+
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    currentUser = user;
+    const snap = await db.collection('users').doc(user.uid).get();
+    currentRole = snap.exists ? (snap.data().role || 'user') : 'user';
+
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('user-info').style.display = 'block';
+    document.getElementById('user-info').textContent = user.email;
+    if (currentRole === 'admin') document.getElementById('admin-btn').style.display = 'block';
+
+    await loadApiKeyAndFetch();
+  } else {
+    currentUser = null;
+    document.getElementById('auth-overlay').style.display = 'flex';
+    document.getElementById('user-info').style.display = 'none';
+    document.getElementById('admin-btn').style.display = 'none';
+    setTdStatus('로그인 후 자동 연결', 'var(--text3)');
+  }
+});
+
+async function doLogin() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pw    = document.getElementById('auth-pw').value;
+  hideAuthError();
+  try {
+    await auth.signInWithEmailAndPassword(email, pw);
+  } catch(e) { showAuthError(authErrMsg(e.code)); }
+}
+
+async function doSignup() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pw    = document.getElementById('auth-pw').value;
+  hideAuthError();
+  if (pw.length < 6) { showAuthError('비밀번호는 6자 이상이어야 합니다.'); return; }
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pw);
+    await db.collection('users').doc(cred.user.uid).set({
+      email, role: 'user',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) { showAuthError(authErrMsg(e.code)); }
+}
+
+async function doLogout() { await auth.signOut(); }
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+function hideAuthError() { document.getElementById('auth-error').style.display = 'none'; }
+function authErrMsg(code) {
+  return ({
+    'auth/user-not-found':      '등록되지 않은 이메일입니다.',
+    'auth/wrong-password':      '비밀번호가 올바르지 않습니다.',
+    'auth/invalid-credential':  '이메일 또는 비밀번호가 올바르지 않습니다.',
+    'auth/invalid-email':       '이메일 형식이 올바르지 않습니다.',
+    'auth/email-already-in-use':'이미 사용 중인 이메일입니다.',
+    'auth/too-many-requests':   '잠시 후 다시 시도해주세요.',
+  })[code] || '오류가 발생했습니다. 다시 시도해주세요.';
+}
+
+// 관리자 모달
+function openAdminModal()  { document.getElementById('admin-modal').style.display = 'flex'; }
+function closeAdminModal() {
+  document.getElementById('admin-modal').style.display = 'none';
+  document.getElementById('admin-save-msg').style.display = 'none';
+}
+async function saveAdminKey() {
+  const key = document.getElementById('admin-td-key').value.trim();
+  if (!key) return;
+  await db.collection('settings').doc('api').set({
+    tdKey: key,
+    updatedBy: currentUser.email,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  tdKey = key;
+  document.getElementById('admin-save-msg').style.display = 'block';
+  fetchMarketData();
+}
+
+// Firestore에서 API 키 로드 후 데이터 수신
+async function loadApiKeyAndFetch() {
+  try {
+    const doc = await db.collection('settings').doc('api').get();
+    if (doc.exists && doc.data().tdKey) {
+      tdKey = doc.data().tdKey;
+      setTdStatus('연결 중...', 'var(--text3)');
+      fetchMarketData();
+    } else {
+      setTdStatus(currentRole === 'admin' ? '⚙ 관리 버튼에서 API 키를 등록하세요' : '관리자가 API 키를 설정 중입니다', 'var(--text3)');
+    }
+  } catch(e) {
+    setTdStatus('연결 오류', 'var(--red)');
+  }
+}
+
 // Clock
 function updateClock() {
   const now = new Date();
@@ -1095,18 +1242,7 @@ makeMiniChart('chart-sp500',  5260,  28, '#5B8FE8', 'rgba(91,143,232,0.08)');
 makeMiniChart('chart-nasdaq', 16550, 90, '#2ECC8A', 'rgba(46,204,138,0.08)');
 
 // ── Twelve Data 실시간 연동 ──
-const TD_STORAGE_KEY = 'atlas_td_key';
-const TD_INJECTED = 'TWELVE_DATA_KEY_PLACEHOLDER';
-let tdKey = localStorage.getItem(TD_STORAGE_KEY) || (TD_INJECTED.startsWith('TWELVE') ? '' : TD_INJECTED);
-
-function saveTdKey() {
-  const val = document.getElementById('tdKeyInput').value.trim();
-  if (!val) return;
-  tdKey = val;
-  localStorage.setItem(TD_STORAGE_KEY, tdKey);
-  setTdStatus('연결 중...', 'var(--text3)');
-  fetchMarketData();
-}
+let tdKey = '';
 
 function setTdStatus(msg, color) {
   const el = document.getElementById('td-status');
@@ -1223,13 +1359,6 @@ async function fetchMarketData() {
       });
     });
   } catch(e) {}
-}
-
-// 저장된 키 있으면 자동 연결
-if (tdKey) {
-  document.getElementById('tdKeyInput').value = '••••••••••••••••';
-  setTdStatus('연결 중...', 'var(--text3)');
-  fetchMarketData();
 }
 
 // Portfolio Chart
