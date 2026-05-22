@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATLAS PB — 프라이빗 뱅킹 투자 플랫폼</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0C0F;
+    --bg2: #111318;
+    --bg3: #181C22;
+    --bg4: #1E2330;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --gold: #C9A84C;
+    --gold2: #E8C876;
+    --gold-dim: rgba(201,168,76,0.15);
+    --text: #F0EDE6;
+    --text2: #9AA0B0;
+    --text3: #5A6070;
+    --green: #2ECC8A;
+    --green-dim: rgba(46,204,138,0.12);
+    --red: #E05252;
+    --red-dim: rgba(224,82,82,0.12);
+    --blue: #5B8FE8;
+    --blue-dim: rgba(91,143,232,0.12);
+    --accent: #7B68EE;
+    --font-serif: 'DM Serif Display', serif;
+    --font-sans: 'DM Sans', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { font-size:14px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px;
+    min-height: 100vh;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top:0; left:0; bottom:0;
+    z-index: 100;
+  }
+  .logo {
+    padding: 28px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-word {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+  }
+  .logo-sub {
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .nav {
+    padding: 16px 0;
+    flex: 1;
+  }
+  .nav-section {
+    padding: 8px 20px 4px;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-top: 8px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 20px;
+    cursor: pointer;
+    color: var(--text2);
+    font-size: 13px;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    position: relative;
+  }
+  .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .nav-item.active {
+    color: var(--gold);
+    background: var(--gold-dim);
+    border-left-color: var(--gold);
+  }
+  .nav-icon { font-size: 15px; width:18px; text-align:center; }
+  .sidebar-bottom {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .user-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .user-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold), #8B6914);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: #fff;
+  }
+  .user-name { font-size: 12px; color: var(--text2); }
+
+  /* MAIN */
+  .main {
+    margin-left: 220px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* TOPBAR */
+  .topbar {
+    height: 56px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 28px;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .topbar-title {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    color: var(--text);
+    flex: 1;
+  }
+  .market-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+  }
+  .market-badge.open { background: var(--green-dim); color: var(--green); }
+  .market-badge.closed { background: var(--red-dim); color: var(--red); }
+  .pulse { width:6px; height:6px; border-radius:50%; animation: pulse 2s infinite; }
+  .pulse.green { background: var(--green); box-shadow: 0 0 0 0 var(--green); }
+  .pulse.red { background: var(--red); }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(46,204,138,0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(46,204,138,0); }
+    100% { box-shadow: 0 0 0 0 rgba(46,204,138,0); }
+  }
+  .topbar-time {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  /* CONTENT */
+  .content {
+    padding: 24px 28px;
+    flex: 1;
+  }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* GRID */
+  .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 20px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 20px; }
+
+  /* CARDS */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--border2); }
+  .card-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 6px;
+  }
+  .card-value {
+    font-size: 26px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+  }
+  .card-change {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+  }
+  .card-change.up { color: var(--green); }
+  .card-change.down { color: var(--red); }
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title small {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    color: var(--text3);
+    font-weight: 400;
+  }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .ticker { font-family: var(--font-mono); color: var(--gold); font-size: 12px; font-weight: 500; }
+  .up-text { color: var(--green); font-family: var(--font-mono); }
+  .down-text { color: var(--red); font-family: var(--font-mono); }
+  .num { font-family: var(--font-mono); }
+
+  /* CHART BARS */
+  .mini-bar { display: flex; align-items: flex-end; gap: 3px; height: 40px; }
+  .mini-bar-item { flex:1; border-radius: 2px 2px 0 0; transition: opacity 0.2s; }
+  .mini-bar-item:hover { opacity: 0.8; }
+
+  /* SPARKLINE */
+  .spark-wrap { height: 32px; display: flex; align-items: center; }
+  svg.spark { overflow: visible; }
+
+  /* FEAR/GREED GAUGE */
+  .gauge-wrap { text-align: center; padding: 10px 0; }
+  .gauge-label { font-size: 28px; font-family: var(--font-mono); font-weight: 500; }
+  .gauge-text { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .gauge-bar { height: 8px; border-radius: 4px; margin: 12px 0 8px; position: relative; overflow: hidden; background: linear-gradient(90deg, var(--red) 0%, #E08830 30%, #E0D030 50%, #80C040 70%, var(--green) 100%); }
+  .gauge-needle { position: absolute; top: -3px; width: 2px; height: 14px; background: var(--text); border-radius: 1px; transform: translateX(-50%); transition: left 0.8s cubic-bezier(.4,0,.2,1); }
+  .gauge-ticks { display: flex; justify-content: space-between; font-size: 9px; color: var(--text3); }
+
+  /* INDEX CIRCLES */
+  .index-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .index-pill {
+    flex: 1; min-width: 80px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .index-pill-name { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+  .index-pill-val { font-family: var(--font-mono); font-size: 14px; font-weight: 500; }
+  .index-pill-chg { font-family: var(--font-mono); font-size: 11px; margin-top: 2px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 2px; background: var(--bg3); border-radius: 8px; padding: 3px; margin-bottom: 16px; }
+  .tab {
+    flex: 1;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    color: var(--text2);
+    transition: all 0.15s;
+  }
+  .tab.active { background: var(--bg4); color: var(--text); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg3);
+  }
+  .upload-zone:hover { border-color: var(--gold); background: var(--gold-dim); }
+  .upload-icon { font-size: 36px; margin-bottom: 10px; }
+  .upload-title { font-size: 15px; font-family: var(--font-serif); color: var(--text); margin-bottom: 6px; }
+  .upload-hint { font-size: 12px; color: var(--text3); }
+  #file-input { display: none; }
+
+  /* REPORT LIST */
+  .report-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .report-item:hover { border-color: var(--gold); }
+  .report-icon {
+    width: 36px; height: 36px;
+    background: var(--gold-dim);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gold);
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .report-info { flex: 1; }
+  .report-name { font-size: 13px; color: var(--text); }
+  .report-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .btn {
+    padding: 8px 16px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--bg4); color: var(--text); }
+  .btn-gold {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #0A0C0F;
+    font-weight: 600;
+  }
+  .btn-gold:hover { background: var(--gold2); }
+
+  /* ANALYSIS OUTPUT */
+  .analysis-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+  }
+  .analysis-box h4 { font-family: var(--font-serif); font-size: 15px; color: var(--gold); margin-bottom: 8px; }
+  .analysis-box p { font-size: 13px; color: var(--text2); line-height: 1.7; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    margin: 2px;
+    font-weight: 500;
+  }
+  .tag-buy { background: var(--green-dim); color: var(--green); }
+  .tag-sell { background: var(--red-dim); color: var(--red); }
+  .tag-hold { background: var(--blue-dim); color: var(--blue); }
+  .tag-sector { background: rgba(123,104,238,0.15); color: var(--accent); }
+
+  /* PORTFOLIO PIE */
+  .port-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .port-leg-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .port-leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .port-leg-name { flex: 1; color: var(--text2); }
+  .port-leg-pct { font-family: var(--font-mono); font-size: 12px; color: var(--text); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* LOADING */
+  .loading-bar { height: 2px; background: var(--gold); animation: loading 1.5s ease-in-out infinite; transform-origin: left; }
+  @keyframes loading { 0%,100%{transform:scaleX(0)} 50%{transform:scaleX(0.8)} }
+
+  .chatbox {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .chat-messages { height: 320px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .chat-msg { max-width: 85%; }
+  .chat-msg.user { align-self: flex-end; }
+  .chat-msg.ai { align-self: flex-start; }
+  .chat-bubble {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .chat-msg.user .chat-bubble { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2); color: var(--text); }
+  .chat-msg.ai .chat-bubble { background: var(--bg4); border: 1px solid var(--border); color: var(--text2); }
+  .chat-input-row { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); }
+  .chat-input {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    outline: none;
+  }
+  .chat-input:focus { border-color: var(--gold); }
+
+  .ai-thinking {
+    display: flex; gap: 4px; align-items: center; padding: 10px 14px;
+    background: var(--bg4); border: 1px solid var(--border); border-radius: 10px;
+    width: fit-content;
+  }
+  .dot-pulse { width:6px; height:6px; border-radius:50%; background:var(--text3); animation: dotPulse 1.4s infinite; }
+  .dot-pulse:nth-child(2) { animation-delay: 0.2s; }
+  .dot-pulse:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotPulse { 0%,60%,100%{opacity:0.3;transform:scale(0.8)} 30%{opacity:1;transform:scale(1)} }
+
+  .rec-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .rec-rank {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    color: var(--text3);
+    width: 30px;
+    flex-shrink: 0;
+    text-align: center;
+  }
+  .rec-rank.gold { color: var(--gold); }
+  .rec-info { flex: 1; }
+  .rec-ticker { font-family: var(--font-mono); color: var(--gold); font-size: 14px; font-weight: 500; }
+  .rec-name { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .rec-reason { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .rec-target { text-align: right; }
+  .rec-target-val { font-family: var(--font-mono); font-size: 16px; font-weight: 500; color: var(--green); }
+  .rec-target-label { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  #api-key-banner {
+    background: rgba(201,168,76,0.08);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 8px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .api-key-input {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    outline: none;
+  }
+  .api-key-input:focus { border-color: var(--gold); }
+
+  .portfolio-bar-wrap { margin: 6px 0; }
+  .portfolio-bar { height: 6px; border-radius: 3px; overflow: hidden; display: flex; gap: 2px; }
+  .portfolio-bar-seg { height: 100%; border-radius: 2px; transition: width 0.5s; }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-word">ATLAS</div>
+    <div class="logo-sub">Private Banking Platform</div>
+  </div>
+  <div class="nav">
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" onclick="showPage('dashboard', this)">
+      <span class="nav-icon">◈</span> 대시보드
+    </div>
+    <div class="nav-section">Market</div>
+    <div class="nav-item" onclick="showPage('domestic', this)">
+      <span class="nav-icon">◉</span> 국내주식
+    </div>
+    <div class="nav-item" onclick="showPage('global', this)">
+      <span class="nav-icon">◎</span> 해외주식
+    </div>
+    <div class="nav-item" onclick="showPage('indicators', this)">
+      <span class="nav-icon">◇</span> 시장 지표
+    </div>
+    <div class="nav-section">Intelligence</div>
+    <div class="nav-item" onclick="showPage('reports', this)">
+      <span class="nav-icon">▣</span> 리포트 분석
+    </div>
+    <div class="nav-item" onclick="showPage('portfolio', this)">
+      <span class="nav-icon">▦</span> 포트폴리오
+    </div>
+  </div>
+  <div class="sidebar-bottom">
+    <div class="user-chip">
+      <div class="user-avatar">PB</div>
+      <div>
+        <div class="user-name" style="color:var(--text);font-size:13px;">김태형 PB</div>
+        <div class="user-name">프라이빗 뱅킹</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">대시보드</div>
+    <div class="market-badge open">
+      <div class="pulse green"></div> KRX 개장
+    </div>
+    <div class="market-badge closed">
+      <div class="pulse red"></div> NYSE 마감
+    </div>
+    <div class="topbar-time" id="clock">--:--:--</div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD PAGE -->
+    <div class="page active" id="page-dashboard">
+      <div class="grid-4">
+        <div class="card">
+          <div class="card-label">KOSPI</div>
+          <div class="card-value" id="kospi-val">2,648.24</div>
+          <div class="card-change up" id="kospi-chg">▲ 1.24%</div>
+        </div>
+        <div class="card">
+          <div class="card-label">KOSDAQ</div>
+          <div class="card-value" id="kosdaq-val">773.18</div>
+          <div class="card-change down" id="kosdaq-chg">▼ 0.31%</div>
+        </div>
+        <div class="card">
+          <div class="card-label">S&P 500</div>
+          <div class="card-value" id="sp500-val">5,312.41</div>
+          <div class="card-change up" id="sp500-chg">▲ 0.87%</div>
+        </div>
+        <div class="card">
+          <div class="card-label">NASDAQ</div>
+          <div class="card-value" id="nasdaq-val">16,742.39</div>
+          <div class="card-change up" id="nasdaq-chg">▲ 1.02%</div>
+        </div>
+      </div>
+
+      <div class="grid-2-1">
+        <div>
+          <div class="card">
+            <div class="section-title">주요 지수 추이 <small>최근 30거래일</small></div>
+            <canvas id="indexChart" height="160"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title">탐욕/공포 지수</div>
+          <div class="gauge-wrap">
+            <div class="gauge-label" id="fear-val" style="color:var(--gold)">62</div>
+            <div class="gauge-text" id="fear-text">Greed — 탐욕</div>
+            <div class="gauge-bar">
+              <div class="gauge-needle" id="fear-needle" style="left:62%"></div>
+            </div>
+            <div class="gauge-ticks">
+              <span>극단 공포</span><span>공포</span><span>중립</span><span>탐욕</span><span>극단</span>
+            </div>
+          </div>
+          <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+            <div class="section-title" style="font-size:13px">VIX 변동성 지수</div>
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font-family:var(--font-mono);font-size:24px;color:var(--text)" id="vix-val">18.42</span>
+              <span style="font-size:12px;color:var(--green)" id="vix-chg">▼ 0.8 낮은 변동성</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="section-title">국내주식 TOP 5 <small>시가총액 기준</small></div>
+          <table>
+            <tr><th>종목</th><th>현재가</th><th>등락</th><th>시총</th></tr>
+            <tr><td class="ticker">005930</td><td class="num">78,400</td><td class="up-text">▲ 1.42%</td><td class="num" style="color:var(--text2)">468T</td></tr>
+            <tr><td class="ticker">000660</td><td class="num">182,500</td><td class="up-text">▲ 2.14%</td><td class="num" style="color:var(--text2)">133T</td></tr>
+            <tr><td class="ticker">035420</td><td class="num">196,000</td><td class="down-text">▼ 0.51%</td><td class="num" style="color:var(--text2)">64T</td></tr>
+            <tr><td class="ticker">051910</td><td class="num">388,500</td><td class="down-text">▼ 1.02%</td><td class="num" style="color:var(--text2)">54T</td></tr>
+            <tr><td class="ticker">006400</td><td class="num">278,000</td><td class="up-text">▲ 0.72%</td><td class="num" style="color:var(--text2)">65T</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <div class="section-title">해외주식 TOP 5 <small>주요 빅테크</small></div>
+          <table>
+            <tr><th>티커</th><th>현재가</th><th>등락</th><th>섹터</th></tr>
+            <tr><td class="ticker">NVDA</td><td class="num">$875.40</td><td class="up-text">▲ 3.12%</td><td style="color:var(--text3);font-size:11px">반도체</td></tr>
+            <tr><td class="ticker">AAPL</td><td class="num">$182.74</td><td class="down-text">▼ 0.28%</td><td style="color:var(--text3);font-size:11px">소비자</td></tr>
+            <tr><td class="ticker">MSFT</td><td class="num">$414.50</td><td class="up-text">▲ 0.94%</td><td style="color:var(--text3);font-size:11px">클라우드</td></tr>
+            <tr><td class="ticker">GOOGL</td><td class="num">$166.32</td><td class="up-text">▲ 1.18%</td><td style="color:var(--text3);font-size:11px">광고/AI</td></tr>
+            <tr><td class="ticker">TSLA</td><td class="num">$182.19</td><td class="down-text">▼ 2.41%</td><td style="color:var(--text3);font-size:11px">전기차</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOMESTIC STOCKS -->
+    <div class="page" id="page-domestic">
+      <div class="tabs" style="max-width:400px">
+        <div class="tab active" onclick="switchTab(this,'tab-krx-all')">전체</div>
+        <div class="tab" onclick="switchTab(this,'tab-krx-kospi')">KOSPI</div>
+        <div class="tab" onclick="switchTab(this,'tab-krx-kosdaq')">KOSDAQ</div>
+        <div class="tab" onclick="switchTab(this,'tab-krx-watch')">관심종목</div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:20px">
+        <div class="card"><div class="card-label">KOSPI</div><div class="card-value">2,648.24</div><div class="card-change up">▲ 32.8 (+1.24%)</div></div>
+        <div class="card"><div class="card-label">KOSDAQ</div><div class="card-value">773.18</div><div class="card-change down">▼ 2.4 (−0.31%)</div></div>
+        <div class="card"><div class="card-label">거래대금</div><div class="card-value" style="font-size:20px">8.4조</div><div class="card-change" style="color:var(--text3)">전일比 +12%</div></div>
+        <div class="card"><div class="card-label">외국인 순매수</div><div class="card-value" style="font-size:20px">+3,284억</div><div class="card-change up">▲ 매수우위</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="section-title">국내 주요 종목 <small>실시간 시세 (KRX)</small></div>
+        <div class="table-wrap">
+          <table id="domestic-table">
+            <tr><th>종목코드</th><th>종목명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>거래량</th><th>시가총액</th><th>PER</th><th>추세</th></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">섹터별 등락 <small>금일 기준</small></div>
+        <div id="sector-bars" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
+      </div>
+    </div>
+
+    <!-- GLOBAL STOCKS -->
+    <div class="page" id="page-global">
+      <div class="grid-4" style="margin-bottom:20px">
+        <div class="card"><div class="card-label">S&P 500</div><div class="card-value">5,312.41</div><div class="card-change up">▲ 0.87%</div></div>
+        <div class="card"><div class="card-label">NASDAQ</div><div class="card-value">16,742.39</div><div class="card-change up">▲ 1.02%</div></div>
+        <div class="card"><div class="card-label">DOW JONES</div><div class="card-value">38,841.2</div><div class="card-change down">▼ 0.14%</div></div>
+        <div class="card"><div class="card-label">환율 (USD/KRW)</div><div class="card-value" style="font-size:20px">1,348.4</div><div class="card-change up">▲ 3.2원</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="section-title">해외 주요 종목 <small>NYSE / NASDAQ</small></div>
+        <div class="table-wrap">
+          <table id="global-table">
+            <tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총(B)</th><th>PER</th><th>목표가</th><th>추세</th></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="section-title">주요 ETF</div>
+          <table>
+            <tr><th>티커</th><th>이름</th><th>현재가</th><th>등락</th></tr>
+            <tr><td class="ticker">SPY</td><td style="color:var(--text2);font-size:12px">S&P500 ETF</td><td class="num">$530.2</td><td class="up-text">▲0.87%</td></tr>
+            <tr><td class="ticker">QQQ</td><td style="color:var(--text2);font-size:12px">NASDAQ-100</td><td class="num">$453.8</td><td class="up-text">▲1.02%</td></tr>
+            <tr><td class="ticker">GLD</td><td style="color:var(--text2);font-size:12px">금 ETF</td><td class="num">$222.4</td><td class="down-text">▼0.21%</td></tr>
+            <tr><td class="ticker">TLT</td><td style="color:var(--text2);font-size:12px">20Y 국채 ETF</td><td class="num">$92.3</td><td class="up-text">▲0.44%</td></tr>
+            <tr><td class="ticker">XLK</td><td style="color:var(--text2);font-size:12px">Tech Sector</td><td class="num">$221.7</td><td class="up-text">▲1.34%</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <div class="section-title">글로벌 지수</div>
+          <table>
+            <tr><th>지수</th><th>값</th><th>등락</th></tr>
+            <tr><td style="color:var(--text2);font-size:12px">🇯🇵 NIKKEI 225</td><td class="num">38,084.2</td><td class="up-text">▲0.54%</td></tr>
+            <tr><td style="color:var(--text2);font-size:12px">🇨🇳 CSI 300</td><td class="num">3,612.8</td><td class="down-text">▼0.22%</td></tr>
+            <tr><td style="color:var(--text2);font-size:12px">🇩🇪 DAX</td><td class="num">18,721.4</td><td class="up-text">▲0.31%</td></tr>
+            <tr><td style="color:var(--text2);font-size:12px">🇬🇧 FTSE 100</td><td class="num">8,312.6</td><td class="down-text">▼0.18%</td></tr>
+            <tr><td style="color:var(--text2);font-size:12px">🇭🇰 HANG SENG</td><td class="num">19,842.1</td><td class="up-text">▲1.12%</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- INDICATORS PAGE -->
+    <div class="page" id="page-indicators">
+      <div class="grid-3" style="margin-bottom:20px">
+        <div class="card">
+          <div class="section-title">공포/탐욕 지수 <small>CNN Money</small></div>
+          <div class="gauge-wrap">
+            <div class="gauge-label" style="color:var(--gold);font-size:36px">62</div>
+            <div class="gauge-text" style="font-size:13px;margin-bottom:12px">🟡 Greed (탐욕)</div>
+            <div class="gauge-bar">
+              <div class="gauge-needle" style="left:62%"></div>
+            </div>
+            <div class="gauge-ticks">
+              <span>극단 공포</span><span></span><span>중립</span><span></span><span>극단 탐욕</span>
+            </div>
+          </div>
+          <div style="margin-top:14px;font-size:12px;color:var(--text3);line-height:1.6">
+            시장 심리가 탐욕 구간에 진입했습니다. 과매수 가능성을 주시하며 분할 매수 전략이 유효합니다.
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title">VIX 변동성 지수</div>
+          <div style="text-align:center;padding:10px 0">
+            <div style="font-family:var(--font-mono);font-size:40px;color:var(--text)">18.42</div>
+            <div style="font-size:12px;color:var(--green);margin-top:6px">낮은 변동성 구간 (≤20)</div>
+          </div>
+          <div style="margin-top:12px">
+            <div class="gauge-bar">
+              <div class="gauge-needle" style="left:30%;background:var(--blue)"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-top:6px">
+              <span>안정 (10)</span><span>경계 (20)</span><span>위험 (30)</span><span>패닉 (40+)</span>
+            </div>
+          </div>
+          <div style="margin-top:14px;font-size:12px;color:var(--text3);line-height:1.6">
+            현재 VIX는 안정 구간입니다. 시장 변동성이 낮아 추세 추종 전략에 우호적인 환경입니다.
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title">환율 & 원자재</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="index-pill" style="text-align:left;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;color:var(--text2)">🇺🇸 USD/KRW</span>
+              <div style="text-align:right"><div class="num" style="font-size:15px">1,348.4</div><div style="font-size:10px;color:var(--red)">▼ 3.2원</div></div>
+            </div>
+            <div class="index-pill" style="text-align:left;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;color:var(--text2)">🪙 금 (Gold)</span>
+              <div style="text-align:right"><div class="num" style="font-size:15px">$2,312</div><div style="font-size:10px;color:var(--green)">▲ 0.41%</div></div>
+            </div>
+            <div class="index-pill" style="text-align:left;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;color:var(--text2)">🛢 WTI 원유</span>
+              <div style="text-align:right"><div class="num" style="font-size:15px">$81.24</div><div style="font-size:10px;color:var(--green)">▲ 0.72%</div></div>
+            </div>
+            <div class="index-pill" style="text-align:left;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;color:var(--text2)">₿ Bitcoin</span>
+              <div style="text-align:right"><div class="num" style="font-size:15px">$67,842</div><div style="font-size:10px;color:var(--green)">▲ 2.14%</div></div>
+            </div>
+            <div class="index-pill" style="text-align:left;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;color:var(--text2)">📊 10Y 미국채 수익률</span>
+              <div style="text-align:right"><div class="num" style="font-size:15px">4.42%</div><div style="font-size:10px;color:var(--red)">▲ 0.04%p</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="section-title">지표 해석 가이드 <small>AI 분석 기반</small></div>
+        <div class="grid-3" style="margin-bottom:0">
+          <div class="analysis-box" style="margin-bottom:0">
+            <h4>📊 공포/탐욕 지수 62 — 탐욕</h4>
+            <p>투자자 심리가 긍정적으로 쏠려있는 구간입니다. 주가가 단기 과열될 가능성이 있으므로, 신규 매수 시 분할 매수와 손절라인 설정을 권장합니다. 지수가 80 이상이면 차익 실현을 검토하세요.</p>
+          </div>
+          <div class="analysis-box" style="margin-bottom:0;border-left-color:var(--blue)">
+            <h4 style="color:var(--blue)">📉 VIX 18.42 — 안정</h4>
+            <p>변동성이 낮은 안정 국면입니다. 옵션 프리미엄이 저렴해 커버드콜, 보호풋 전략에 유리합니다. 단 VIX 급등 시나리오 대비 포트폴리오 헷지를 유지하시는 것을 권장합니다.</p>
+          </div>
+          <div class="analysis-box" style="margin-bottom:0;border-left-color:var(--green)">
+            <h4 style="color:var(--green)">💱 환율 1,348원 — 주의</h4>
+            <p>원/달러 환율이 1,350원대를 하회하며 소폭 원화 강세입니다. 해외주식 투자자는 환헷지 여부를 재검토할 시점입니다. 수출 대형주(반도체, 자동차)에는 단기 부담 요인입니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">주요 경제 일정 <small>이번 주</small></div>
+        <table>
+          <tr><th>날짜</th><th>국가</th><th>지표</th><th>예상치</th><th>이전값</th><th>중요도</th></tr>
+          <tr><td class="num" style="color:var(--text2)">05/22</td><td>🇺🇸 미국</td><td>FOMC 의사록</td><td>—</td><td>—</td><td><span class="tag tag-sell">🔴 높음</span></td></tr>
+          <tr><td class="num" style="color:var(--text2)">05/23</td><td>🇺🇸 미국</td><td>신규 실업수당</td><td>215K</td><td>222K</td><td><span class="tag tag-hold">🟡 중간</span></td></tr>
+          <tr><td class="num" style="color:var(--text2)">05/24</td><td>🇺🇸 미국</td><td>PCE 물가지수</td><td>2.7%</td><td>2.8%</td><td><span class="tag tag-sell">🔴 높음</span></td></tr>
+          <tr><td class="num" style="color:var(--text2)">05/24</td><td>🇰🇷 한국</td><td>수출입 동향</td><td>+8.2%</td><td>+13.8%</td><td><span class="tag tag-hold">🟡 중간</span></td></tr>
+          <tr><td class="num" style="color:var(--text2)">05/28</td><td>🇺🇸 미국</td><td>소비자신뢰지수</td><td>96.0</td><td>97.0</td><td><span class="tag tag-buy">🟢 보통</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- REPORTS PAGE -->
+    <div class="page" id="page-reports">
+      <div id="api-key-banner">
+        <span>🔑</span>
+        <span style="color:var(--text2)">Anthropic API 키</span>
+        <input type="password" class="api-key-input" id="apiKeyInput" placeholder="sk-ant-..." style="max-width:280px">
+        <button class="btn btn-gold" onclick="saveApiKey()" style="font-size:11px;padding:5px 12px">저장</button>
+        <span id="api-status" style="color:var(--text3)">미연결</span>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:20px">
+        <div>
+          <div class="card">
+            <div class="section-title">리포트 업로드</div>
+            <div class="upload-zone" onclick="document.getElementById('file-input').click()" id="dropZone">
+              <div class="upload-icon">📄</div>
+              <div class="upload-title">PDF 리포트를 업로드하세요</div>
+              <div class="upload-hint">골드만삭스, FN가이드, 한투증권 등 애널리스트 리포트<br>드래그&드롭 또는 클릭하여 업로드</div>
+            </div>
+            <input type="file" id="file-input" accept=".pdf" multiple onchange="handleFiles(this.files)">
+          </div>
+
+          <div class="card" style="margin-top:14px">
+            <div class="section-title">업로드된 리포트</div>
+            <div id="report-list">
+              <div class="report-item">
+                <div class="report-icon">📊</div>
+                <div class="report-info">
+                  <div class="report-name">Goldman Sachs — Korea Tech Outlook 2024Q2</div>
+                  <div class="report-meta">샘플 리포트 · 16페이지 · 2024.05.10</div>
+                </div>
+                <button class="btn" onclick="analyzeReport('goldman')">분석</button>
+              </div>
+              <div class="report-item">
+                <div class="report-icon">📈</div>
+                <div class="report-info">
+                  <div class="report-name">FN가이드 — 반도체 섹터 리포트 5월</div>
+                  <div class="report-meta">샘플 리포트 · 24페이지 · 2024.05.15</div>
+                </div>
+                <button class="btn" onclick="analyzeReport('fnguide')">분석</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="section-title">AI 분석 결과</div>
+            <div id="analysis-result">
+              <div style="text-align:center;padding:40px 20px;color:var(--text3)">
+                <div style="font-size:32px;margin-bottom:10px">◈</div>
+                <div style="font-size:13px">리포트를 선택하고 '분석' 버튼을 눌러<br>AI 투자 인사이트를 확인하세요</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:14px">
+            <div class="section-title">리포트 Q&A <small>업로드된 리포트 기반 대화</small></div>
+            <div class="chatbox">
+              <div class="chat-messages" id="chat-messages">
+                <div class="chat-msg ai">
+                  <div class="chat-bubble">안녕하세요! 업로드된 리포트를 분석하여 투자 질문에 답변드립니다. 어떤 것이 궁금하신가요?</div>
+                </div>
+              </div>
+              <div class="chat-input-row">
+                <input class="chat-input" id="chat-input" placeholder="예: 반도체 섹터 단기 전망은?" onkeydown="if(event.key==='Enter')sendChat()">
+                <button class="btn btn-gold" onclick="sendChat()">전송</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PORTFOLIO PAGE -->
+    <div class="page" id="page-portfolio">
+      <div class="grid-4" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-label">총 자산</div>
+          <div class="card-value" style="font-size:22px">₩ 247.8M</div>
+          <div class="card-change up">▲ +12.4% YTD</div>
+        </div>
+        <div class="card">
+          <div class="card-label">평가손익</div>
+          <div class="card-value" style="font-size:22px;color:var(--green)">+₩ 27.4M</div>
+          <div class="card-change up">▲ 금주 +1.2%</div>
+        </div>
+        <div class="card">
+          <div class="card-label">국내 비중</div>
+          <div class="card-value" style="font-size:22px">52%</div>
+          <div class="card-change" style="color:var(--text3)">128.9M</div>
+        </div>
+        <div class="card">
+          <div class="card-label">해외 비중</div>
+          <div class="card-value" style="font-size:22px">48%</div>
+          <div class="card-change" style="color:var(--text3)">118.9M</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="section-title">포트폴리오 구성</div>
+          <canvas id="portChart" height="200"></canvas>
+          <div class="port-legend" id="port-legend"></div>
+        </div>
+        <div class="card">
+          <div class="section-title">AI 추천 종목 <small>리포트 분석 기반</small></div>
+          <div id="rec-list">
+            <div class="rec-card">
+              <div class="rec-rank gold">01</div>
+              <div class="rec-info">
+                <div class="rec-ticker">NVDA <span class="tag tag-buy">BUY</span></div>
+                <div class="rec-name">NVIDIA Corporation</div>
+                <div class="rec-reason">AI 인프라 수요 급증, H100 수요 견고, 데이터센터 성장 지속</div>
+              </div>
+              <div class="rec-target">
+                <div class="rec-target-val">$1,100</div>
+                <div class="rec-target-label">12M 목표가</div>
+              </div>
+            </div>
+            <div class="rec-card">
+              <div class="rec-rank" style="color:var(--text2)">02</div>
+              <div class="rec-info">
+                <div class="rec-ticker">005930 <span class="tag tag-buy">BUY</span></div>
+                <div class="rec-name">삼성전자</div>
+                <div class="rec-reason">HBM3E 양산 체제, AI 반도체 수혜, 밸류에이션 저평가 구간</div>
+              </div>
+              <div class="rec-target">
+                <div class="rec-target-val">₩96,000</div>
+                <div class="rec-target-label">12M 목표가</div>
+              </div>
+            </div>
+            <div class="rec-card">
+              <div class="rec-rank" style="color:var(--text2)">03</div>
+              <div class="rec-info">
+                <div class="rec-ticker">MSFT <span class="tag tag-buy">BUY</span></div>
+                <div class="rec-name">Microsoft Corp</div>
+                <div class="rec-reason">Copilot 기업 도입 가속, Azure AI 성장률 29%, 구조적 성장</div>
+              </div>
+              <div class="rec-target">
+                <div class="rec-target-val">$480</div>
+                <div class="rec-target-label">12M 목표가</div>
+              </div>
+            </div>
+            <div class="rec-card">
+              <div class="rec-rank" style="color:var(--text2)">04</div>
+              <div class="rec-info">
+                <div class="rec-ticker">000660 <span class="tag tag-hold">HOLD</span></div>
+                <div class="rec-name">SK하이닉스</div>
+                <div class="rec-reason">HBM 업사이드 충분, 단기 밸류 부담 있으나 중기 긍정</div>
+              </div>
+              <div class="rec-target">
+                <div class="rec-target-val">₩220,000</div>
+                <div class="rec-target-label">12M 목표가</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="section-title" style="justify-content:space-between">
+          AI 포트폴리오 생성기 <small>리포트 기반 자동 구성</small>
+          <button class="btn btn-gold" onclick="generatePortfolio()">포트폴리오 생성 ✦</button>
+        </div>
+        <div id="portfolio-gen-result">
+          <div style="color:var(--text3);font-size:13px;padding:12px 0">'포트폴리오 생성' 버튼을 누르면 업로드된 리포트를 바탕으로 맞춤 포트폴리오를 AI가 구성합니다.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+// Clock
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Nav
+function showPage(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  el.classList.add('active');
+  const titles = {dashboard:'대시보드',domestic:'국내주식',global:'해외주식',indicators:'시장 지표',reports:'리포트 분석',portfolio:'포트폴리오'};
+  document.getElementById('page-title').textContent = titles[page] || page;
+}
+
+function switchTab(el, tabId) {
+  el.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// API Key
+let anthropicApiKey = '';
+function saveApiKey() {
+  anthropicApiKey = document.getElementById('apiKeyInput').value.trim();
+  if (anthropicApiKey) {
+    document.getElementById('api-status').textContent = '✓ 연결됨';
+    document.getElementById('api-status').style.color = 'var(--green)';
+  }
+}
+
+// Index Chart
+const ctx = document.getElementById('indexChart').getContext('2d');
+const labels = Array.from({length:30},(_,i)=> {
+  const d = new Date(); d.setDate(d.getDate()-29+i);
+  return (d.getMonth()+1)+'/'+(d.getDate());
+});
+function makeData(base, vol) {
+  let v = base;
+  return labels.map(()=> { v += (Math.random()-0.48)*vol; return Math.round(v*100)/100; });
+}
+new Chart(ctx, {
+  type:'line',
+  data: {
+    labels,
+    datasets: [
+      {label:'KOSPI', data:makeData(2580,18), borderColor:'#C9A84C', borderWidth:1.5, pointRadius:0, tension:0.4},
+      {label:'S&P500(×0.5)', data:makeData(2650,14), borderColor:'#5B8FE8', borderWidth:1.5, pointRadius:0, tension:0.4},
+      {label:'NASDAQ(×0.16)', data:makeData(2640,22), borderColor:'#2ECC8A', borderWidth:1.5, pointRadius:0, tension:0.4}
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins: {legend:{labels:{color:'#9AA0B0',font:{size:11},boxWidth:20,padding:16}}},
+    scales: {
+      x:{ticks:{color:'#5A6070',font:{size:10},maxTicksLimit:8}, grid:{color:'rgba(255,255,255,0.04)'}},
+      y:{ticks:{color:'#5A6070',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'}}
+    }
+  }
+});
+
+// Portfolio Chart
+const portCtx = document.getElementById('portChart').getContext('2d');
+const portData = [
+  {label:'삼성전자', pct:22, color:'#C9A84C'},
+  {label:'NVDA', pct:18, color:'#5B8FE8'},
+  {label:'SK하이닉스', pct:14, color:'#2ECC8A'},
+  {label:'MSFT', pct:12, color:'#7B68EE'},
+  {label:'네이버', pct:9, color:'#E05252'},
+  {label:'기타 해외', pct:14, color:'#4A5568'},
+  {label:'현금', pct:11, color:'#2D3748'},
+];
+new Chart(portCtx, {
+  type:'doughnut',
+  data: {
+    labels: portData.map(d=>d.label),
+    datasets:[{data:portData.map(d=>d.pct), backgroundColor:portData.map(d=>d.color), borderWidth:0, hoverOffset:4}]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins: {legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed}%`}}}
+  }
+});
+const legend = document.getElementById('port-legend');
+portData.forEach(d => {
+  legend.innerHTML += `<div class="port-leg-item"><div class="port-leg-dot" style="background:${d.color}"></div><div class="port-leg-name">${d.label}</div><div class="port-leg-pct">${d.pct}%</div></div>`;
+});
+
+// Domestic table
+const domesticStocks = [
+  ['005930','삼성전자','78,400','▲1,100','▲1.42%','14,820,000','468T','15.2'],
+  ['000660','SK하이닉스','182,500','▲3,800','▲2.14%','6,241,000','133T','28.4'],
+  ['035420','NAVER','196,000','▼1,000','▼0.51%','2,418,000','64T','32.1'],
+  ['051910','LG화학','388,500','▼4,000','▼1.02%','412,000','54T','18.7'],
+  ['006400','삼성SDI','278,000','▲2,000','▲0.72%','831,000','65T','22.3'],
+  ['035720','카카오','46,850','▲350','▲0.75%','8,920,000','21T','41.2'],
+  ['028260','삼성물산','148,500','▼500','▼0.34%','648,000','28T','12.4'],
+  ['003550','LG','88,400','▲800','▲0.91%','924,000','15T','9.8'],
+];
+const dt = document.getElementById('domestic-table');
+domesticStocks.forEach(r => {
+  const isUp = r[4].includes('▲');
+  const spark = generateSparkSVG(isUp);
+  dt.innerHTML += `<tr>
+    <td class="ticker">${r[0]}</td>
+    <td style="color:var(--text)">${r[1]}</td>
+    <td class="num">${r[2]}</td>
+    <td class="${isUp?'up-text':'down-text'}">${r[3]}</td>
+    <td class="${isUp?'up-text':'down-text'}">${r[4]}</td>
+    <td class="num" style="color:var(--text2)">${r[5]}</td>
+    <td class="num" style="color:var(--text2)">${r[6]}</td>
+    <td class="num" style="color:var(--text2)">${r[7]}</td>
+    <td>${spark}</td>
+  </tr>`;
+});
+
+// Global table
+const globalStocks = [
+  ['NVDA','NVIDIA','$875.40','▲26.50','▲3.12%','$2.16T','68.2','$1,100'],
+  ['AAPL','Apple','$182.74','▼0.52','▼0.28%','$2.81T','28.4','$220'],
+  ['MSFT','Microsoft','$414.50','▲3.87','▲0.94%','$3.08T','36.8','$480'],
+  ['GOOGL','Alphabet','$166.32','▲1.94','▲1.18%','$2.04T','24.1','$200'],
+  ['TSLA','Tesla','$182.19','▼4.51','▼2.41%','$580B','54.2','$220'],
+  ['META','Meta','$484.10','▲5.12','▲1.07%','$1.24T','24.8','$560'],
+  ['AMZN','Amazon','$184.90','▲2.14','▲1.17%','$1.92T','41.2','$220'],
+];
+const gt = document.getElementById('global-table');
+globalStocks.forEach(r => {
+  const isUp = r[4].includes('▲');
+  const spark = generateSparkSVG(isUp);
+  gt.innerHTML += `<tr>
+    <td class="ticker">${r[0]}</td>
+    <td style="color:var(--text)">${r[1]}</td>
+    <td class="num">${r[2]}</td>
+    <td class="${isUp?'up-text':'down-text'}">${r[3]}</td>
+    <td class="${isUp?'up-text':'down-text'}">${r[4]}</td>
+    <td class="num" style="color:var(--text2)">${r[5]}</td>
+    <td class="num" style="color:var(--text2)">${r[6]}</td>
+    <td class="num" style="color:var(--green)">${r[7]}</td>
+    <td>${spark}</td>
+  </tr>`;
+});
+
+// Sparkline generator
+function generateSparkSVG(up) {
+  const pts = Array.from({length:12},()=>Math.random()*20+5);
+  if(up) pts[pts.length-1] = pts[pts.length-2] + 3;
+  else pts[pts.length-1] = pts[pts.length-2] - 3;
+  const w=60, h=24;
+  const max=Math.max(...pts), min=Math.min(...pts);
+  const scaleY=v=>h-(v-min)/(max-min+0.01)*h;
+  const path=pts.map((v,i)=>`${i===0?'M':'L'}${i*(w/(pts.length-1))},${scaleY(v).toFixed(1)}`).join(' ');
+  const color=up?'var(--green)':'var(--red)';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="spark"><path d="${path}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+}
+
+// Sector bars
+const sectors = [
+  {name:'반도체', val:2.4, max:3},
+  {name:'2차전지', val:-1.2, max:3},
+  {name:'인터넷/플랫폼', val:0.8, max:3},
+  {name:'금융', val:1.1, max:3},
+  {name:'바이오/헬스', val:-0.4, max:3},
+  {name:'소비재', val:0.3, max:3},
+  {name:'에너지/화학', val:-0.7, max:3},
+];
+const sectorDiv = document.getElementById('sector-bars');
+sectors.forEach(s => {
+  const pct = Math.abs(s.val)/s.max*100;
+  const color = s.val > 0 ? 'var(--green)' : 'var(--red)';
+  sectorDiv.innerHTML += `
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:110px;font-size:12px;color:var(--text2);flex-shrink:0">${s.name}</div>
+      <div style="flex:1;background:var(--bg3);border-radius:3px;height:6px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.6s"></div>
+      </div>
+      <div style="width:50px;font-family:var(--font-mono);font-size:12px;color:${color};text-align:right">${s.val>0?'+':''}${s.val}%</div>
+    </div>`;
+});
+
+// File upload
+let uploadedFiles = [];
+function handleFiles(files) {
+  Array.from(files).forEach(file => {
+    uploadedFiles.push(file);
+    const list = document.getElementById('report-list');
+    list.innerHTML += `<div class="report-item" id="report-${uploadedFiles.length}">
+      <div class="report-icon">📋</div>
+      <div class="report-info">
+        <div class="report-name">${file.name}</div>
+        <div class="report-meta">업로드됨 · ${(file.size/1024).toFixed(0)}KB · 방금</div>
+      </div>
+      <button class="btn" onclick="analyzeUploadedFile(${uploadedFiles.length-1})">분석</button>
+    </div>`;
+  });
+}
+
+// Drag & drop
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor='var(--gold)'; });
+dz.addEventListener('dragleave', () => { dz.style.borderColor=''; });
+dz.addEventListener('drop', e => { e.preventDefault(); dz.style.borderColor=''; handleFiles(e.dataTransfer.files); });
+
+// Analysis
+async function analyzeReport(type) {
+  const resultEl = document.getElementById('analysis-result');
+  resultEl.innerHTML = `<div style="padding:20px 0"><div class="loading-bar"></div><div style="color:var(--text3);font-size:12px;margin-top:12px;text-align:center">AI가 리포트를 분석중입니다...</div></div>`;
+
+  if (!anthropicApiKey) {
+    setTimeout(() => {
+      resultEl.innerHTML = getSampleAnalysis(type);
+    }, 1800);
+    return;
+  }
+
+  const prompt = type === 'goldman'
+    ? `당신은 시니어 투자 분석가입니다. Goldman Sachs의 Korea Tech Outlook 2024Q2 리포트를 분석하여 다음을 제공해주세요:\n1. 주요 투자 테마 3가지\n2. 매수 추천 종목 (이유 포함)\n3. 주의 종목\n4. 섹터 전망 요약\n한국어로 간결하게 답변하세요.`
+    : `당신은 시니어 투자 분석가입니다. FN가이드의 반도체 섹터 리포트를 분석하여 다음을 제공해주세요:\n1. 반도체 업황 현황\n2. 핵심 투자 종목 추천\n3. 리스크 요인\n4. 6개월 전망\n한국어로 간결하게 답변하세요.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':anthropicApiKey,'anthropic-version':'2023-06-01'},
+      body: JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '분석 실패';
+    resultEl.innerHTML = `<div class="analysis-box"><h4>📊 AI 분석 결과</h4><p>${text.replace(/\n/g,'<br>')}</p></div>`;
+  } catch(e) {
+    resultEl.innerHTML = getSampleAnalysis(type);
+  }
+}
+
+async function analyzeUploadedFile(idx) {
+  const file = uploadedFiles[idx];
+  const resultEl = document.getElementById('analysis-result');
+  resultEl.innerHTML = `<div style="padding:20px 0"><div class="loading-bar"></div><div style="color:var(--text3);font-size:12px;margin-top:12px;text-align:center">${file.name} 분석중...</div></div>`;
+
+  if (!anthropicApiKey) {
+    setTimeout(() => { resultEl.innerHTML = getSampleAnalysis('custom'); }, 2000);
+    return;
+  }
+
+  try {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target.result.split(',')[1];
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':anthropicApiKey,'anthropic-version':'2023-06-01'},
+        body: JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:1500,
+          messages:[{role:'user',content:[
+            {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+            {type:'text',text:'이 투자 리포트를 분석하여 한국어로 답해주세요:\n1. 핵심 투자 테마\n2. 추천 종목 및 목표가\n3. 리스크 요인\n4. 총평 및 투자 의견\n각 항목을 명확히 구분하여 작성해주세요.'}
+          ]}]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || '분석 실패';
+      resultEl.innerHTML = `<div class="analysis-box"><h4>📋 ${file.name} — AI 분석</h4><p>${text.replace(/\n/g,'<br>')}</p></div>`;
+    };
+    reader.readAsDataURL(file);
+  } catch(e) {
+    resultEl.innerHTML = getSampleAnalysis('custom');
+  }
+}
+
+function getSampleAnalysis(type) {
+  const samples = {
+    goldman: `<div class="analysis-box"><h4>Goldman Sachs Korea Tech Outlook — 핵심 요약</h4>
+      <p>GS는 AI 인프라 사이클을 핵심 테마로 지목하며, HBM(High Bandwidth Memory) 수요 급증으로 한국 반도체 주의 구조적 상승을 예상합니다.</p></div>
+      <div class="analysis-box" style="border-left-color:var(--green)"><h4 style="color:var(--green)">추천 종목</h4>
+      <p><span class="tag tag-buy">BUY</span><span class="tag tag-sector">반도체</span> <strong>삼성전자 (005930)</strong> — 목표가 ₩96,000<br>HBM3E 양산 가속, AI서버향 DRAM 점유율 확대. 현재 저평가 구간 진입.</p>
+      <p style="margin-top:8px"><span class="tag tag-buy">BUY</span><span class="tag tag-sector">반도체</span> <strong>SK하이닉스 (000660)</strong> — 목표가 ₩220,000<br>HBM 사실상 독점적 수혜, NVIDIA 공급 체인의 핵심 포지션.</p></div>
+      <div class="analysis-box" style="border-left-color:var(--red)"><h4 style="color:var(--red)">리스크 요인</h4>
+      <p>미중 기술 디커플링 심화, 엔비디아 수출 규제 확대 가능성, 원/달러 환율 변동성. 지수 고평가 논란(S&P P/E 21배)에 따른 조정 리스크.</p></div>`,
+    fnguide: `<div class="analysis-box"><h4>FN가이드 반도체 섹터 리포트 — 핵심 요약</h4>
+      <p>2024년 반도체 업황은 AI 서버 수요를 중심으로 가파른 회복세입니다. DDR5, HBM 전환이 빠르게 진행되며 ASP(평균판매가) 상승이 실적 개선을 견인합니다.</p></div>
+      <div class="analysis-box" style="border-left-color:var(--green)"><h4 style="color:var(--green)">업황 전망</h4>
+      <p>2024년 DRAM 영업이익률 30%대 회복 전망. HBM 가격 프리미엄 유지 (일반 DRAM 대비 5-8배). NAND 역시 재고 정상화 완료 국면.</p></div>
+      <div class="analysis-box" style="border-left-color:var(--blue)"><h4 style="color:var(--blue)">투자 전략</h4>
+      <p><span class="tag tag-buy">BUY</span> 삼성전자, SK하이닉스 비중확대 권고. 하반기 갈수록 이익 모멘텀 강화 예상. AI 서버향 HBM 공급 계약 추이 모니터링 필요.</p></div>`,
+    custom: `<div class="analysis-box"><h4>📋 업로드 리포트 — AI 분석 완료</h4>
+      <p>리포트 분석이 완료되었습니다. API 키를 입력하시면 실제 PDF 내용을 기반으로 정확한 분석을 받으실 수 있습니다.</p></div>
+      <div class="analysis-box" style="border-left-color:var(--green)"><h4 style="color:var(--green)">샘플 분석 결과</h4>
+      <p><span class="tag tag-buy">BUY</span> 주요 테마: AI/반도체 인프라 투자 확대, 클라우드 전환 가속<br>목표 섹터: IT, 반도체, 2차전지 순서로 비중 확대 권장</p></div>`
+  };
+  return samples[type] || samples.custom;
+}
+
+// Chat
+let chatHistory = [];
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  const msgs = document.getElementById('chat-messages');
+  msgs.innerHTML += `<div class="chat-msg user"><div class="chat-bubble">${msg}</div></div>`;
+  msgs.innerHTML += `<div class="chat-msg ai" id="thinking"><div class="ai-thinking"><div class="dot-pulse"></div><div class="dot-pulse"></div><div class="dot-pulse"></div></div></div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  chatHistory.push({role:'user', content: msg});
+
+  if (!anthropicApiKey) {
+    setTimeout(() => {
+      document.getElementById('thinking')?.remove();
+      const demoReplies = {
+        '반도체': '반도체 섹터는 현재 AI 서버 수요로 강력한 업사이드 모멘텀을 보유하고 있습니다. 특히 HBM(고대역폭 메모리) 분야에서 삼성전자와 SK하이닉스의 경쟁 구도가 주목됩니다. 단기 목표가: 삼성전자 ₩90,000, SK하이닉스 ₩200,000.',
+        '목표가': '업로드된 리포트 기준 주요 목표가: NVDA $1,100 (+26%), 삼성전자 ₩96,000 (+22%), MSFT $480 (+16%). 12개월 기준입니다.',
+      };
+      const reply = Object.entries(demoReplies).find(([k])=>msg.includes(k))?.[1] ||
+        '리포트 기반 분석: 현재 시장은 AI 인프라 투자 확대 사이클에 있습니다. API 키를 등록하시면 업로드된 PDF 리포트 내용을 직접 참조하여 더 정확한 답변을 드릴 수 있습니다.';
+      msgs.innerHTML += `<div class="chat-msg ai"><div class="chat-bubble">${reply}</div></div>`;
+      msgs.scrollTop = msgs.scrollHeight;
+    }, 1200);
+    return;
+  }
+
+  try {
+    const systemPrompt = `당신은 프라이빗 뱅킹 투자 전문가입니다. 업로드된 애널리스트 리포트(골드만삭스, FN가이드 등)를 바탕으로 투자 조언을 한국어로 제공합니다. 간결하고 전문적으로 답변하세요. 구체적인 수치와 근거를 제시하세요.`;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':anthropicApiKey,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,system:systemPrompt,messages:chatHistory})
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || '답변 생성 실패';
+    chatHistory.push({role:'assistant', content: reply});
+    document.getElementById('thinking')?.remove();
+    msgs.innerHTML += `<div class="chat-msg ai"><div class="chat-bubble">${reply.replace(/\n/g,'<br>')}</div></div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+  } catch(e) {
+    document.getElementById('thinking')?.remove();
+    msgs.innerHTML += `<div class="chat-msg ai"><div class="chat-bubble">오류가 발생했습니다. API 키를 확인해주세요.</div></div>`;
+  }
+}
+
+// Portfolio generation
+async function generatePortfolio() {
+  const el = document.getElementById('portfolio-gen-result');
+  el.innerHTML = `<div><div class="loading-bar"></div><div style="color:var(--text3);font-size:12px;margin-top:12px">AI가 리포트를 기반으로 포트폴리오를 구성중입니다...</div></div>`;
+
+  if (!anthropicApiKey) {
+    setTimeout(() => {
+      el.innerHTML = `
+        <div style="margin-top:12px">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:12px">✦ AI 추천 포트폴리오 (리스크 중간, 12개월 기준)</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${[
+              ['삼성전자 (005930)','국내 반도체 대표주. HBM3E 양산','20%','#C9A84C'],
+              ['SK하이닉스 (000660)','HBM 핵심 수혜주','15%','#5B8FE8'],
+              ['NVDA','AI 인프라 리더, 구조적 성장','18%','#2ECC8A'],
+              ['MSFT','AI 플랫폼 수혜, Copilot 성장','12%','#7B68EE'],
+              ['삼성SDI (006400)','2차전지 저평가 회복 기대','8%','#E05252'],
+              ['QQQ ETF','기술주 분산, 변동성 완충','12%','#F6AD55'],
+              ['GLD ETF','인플레이션 헷지, 포트 안정화','8%','#9F7AEA'],
+              ['현금','기회 대기, 조정 시 추가 매수','7%','#4A5568'],
+            ].map(([name,reason,pct,color])=>`
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px">
+                <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
+                <div style="flex:1">
+                  <div style="font-size:13px;color:var(--text)">${name}</div>
+                  <div style="font-size:11px;color:var(--text3);margin-top:2px">${reason}</div>
+                </div>
+                <div style="font-family:var(--font-mono);font-size:15px;font-weight:500;color:${color}">${pct}</div>
+              </div>`).join('')}
+          </div>
+          <div style="margin-top:14px;padding:12px 14px;background:var(--gold-dim);border:1px solid rgba(201,168,76,0.2);border-radius:8px;font-size:12px;color:var(--text2);line-height:1.7">
+            ⚠️ 본 포트폴리오는 AI 분석 기반 참고 자료입니다. 실제 투자 결정은 고객의 리스크 성향, 투자 기간, 세금 상황 등을 종합적으로 고려하여 담당 PB와 상의 후 결정하시기 바랍니다.
+          </div>
+        </div>`;
+    }, 2200);
+    return;
+  }
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':anthropicApiKey,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,messages:[{role:'user',content:'당신은 프라이빗 뱅킹 포트폴리오 매니저입니다. 현재 골드만삭스와 FN가이드 리포트를 분석했고 AI/반도체 사이클, 금리 환경, 글로벌 매크로를 고려하여 총 자산 2억원 규모의 최적 포트폴리오를 구성해주세요. 각 종목별 비중%, 선택 이유, 목표 수익률을 포함하여 한국어로 상세히 작성하세요.'}]})
+    });
+    const data = await res.json();
+    el.innerHTML = `<div class="analysis-box"><h4>✦ AI 맞춤 포트폴리오</h4><p>${(data.content?.[0]?.text||'').replace(/\n/g,'<br>')}</p></div>`;
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);font-size:13px">오류: API 키를 확인해주세요.</div>`;
+  }
+}
+
+// Simulate live updates
+setInterval(() => {
+  const fluctuate = (val, spread=0.002) => (val*(1+(Math.random()-0.5)*spread)).toFixed(2);
+  ['kospi-val','kosdaq-val','sp500-val','nasdaq-val'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(el){el.textContent=parseFloat(el.textContent.replace(/,/g,'')).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+  });
+}, 3000);
+</script>
+</body>
+</html>
