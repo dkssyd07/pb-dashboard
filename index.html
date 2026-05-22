@@ -1355,42 +1355,55 @@ async function fetchMarketData() {
   if (!tdKey) return;
   const B = 'https://api.twelvedata.com';
 
-  // 1. 주요 지수 (한국 + 미국) — 1 call
+  // 1. 주요 지수
   try {
     const r = await fetch(`${B}/quote?symbol=KOSPI,KOSDAQ,SPX,IXIC&apikey=${tdKey}`);
     const d = await r.json();
+    console.log('[TwelveData] 지수 응답:', d);
+
+    if (d.status === 'error') {
+      setTdStatus('API 오류: ' + d.message, 'var(--red)'); return;
+    }
+
     const map = [
       [d.KOSPI,  'kospi',  fmtKrw],
       [d.KOSDAQ, 'kosdaq', fmtKrw],
       [d.SPX,    'sp500',  v => parseFloat(v).toLocaleString('en-US', {minimumFractionDigits:2})],
       [d.IXIC,   'nasdaq', v => parseFloat(v).toLocaleString('en-US', {minimumFractionDigits:2})],
     ];
+    let updated = 0;
     map.forEach(([q, id, fmt]) => {
-      if (!q || q.status === 'error') return;
+      if (!q || q.status === 'error') { console.warn('[TwelveData]', id, '응답 오류:', q); return; }
       document.getElementById(`${id}-val`).textContent = fmt(q.close);
       const el = document.getElementById(`${id}-chg`);
       el.textContent = fmtPct(q.percent_change);
       el.className = `card-change ${isUp(q.percent_change) ? 'up' : 'down'}`;
+      updated++;
     });
-    setTdStatus('✓ 실시간 연결됨', 'var(--green)');
+    setTdStatus(updated > 0 ? `✓ 실시간 연결됨 (${updated}/4 지수)` : 'API 응답 오류 — 콘솔 확인', updated > 0 ? 'var(--green)' : 'var(--red)');
   } catch(e) {
-    setTdStatus('연결 오류', 'var(--red)');
+    console.error('[TwelveData] 지수 fetch 실패:', e);
+    setTdStatus('네트워크 오류: ' + e.message, 'var(--red)');
+    return;
   }
 
-  // 2. 국내 주요 종목 — 1 call
+  // 2. 국내 주요 종목
   try {
     const syms = '005930:KRX,000660:KRX,035420:KRX,051910:KRX,006400:KRX,035720:KRX,028260:KRX,003550:KRX';
     const r = await fetch(`${B}/quote?symbol=${syms}&apikey=${tdKey}`);
     const d = await r.json();
+    console.log('[TwelveData] 국내주식 응답:', d);
     const names = {'005930':'삼성전자','000660':'SK하이닉스','035420':'NAVER','051910':'LG화학','006400':'삼성SDI','035720':'카카오','028260':'삼성물산','003550':'LG'};
     const pers  = {'005930':'15.2','000660':'28.4','035420':'32.1','051910':'18.7','006400':'22.3','035720':'41.2','028260':'12.4','003550':'9.8'};
     const dt = document.getElementById('domestic-table');
-    dt.innerHTML = '<tr><th>종목코드</th><th>종목명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>거래량</th><th>시가총액</th><th>PER</th><th>추세</th></tr>';
+    let rows = '<tr><th>종목코드</th><th>종목명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>거래량</th><th>시가총액</th><th>PER</th><th>추세</th></tr>';
+    let hasData = false;
     Object.entries(d).forEach(([sym, q]) => {
       if (!q || q.status === 'error') return;
+      hasData = true;
       const code = sym.split(':')[0];
       const up = isUp(q.change);
-      dt.innerHTML += `<tr>
+      rows += `<tr>
         <td class="ticker">${code}</td>
         <td style="color:var(--text)">${names[code]||code}</td>
         <td class="num">${fmtKrw(q.close)}</td>
@@ -1402,21 +1415,25 @@ async function fetchMarketData() {
         <td>${generateSparkSVG(up)}</td>
       </tr>`;
     });
-  } catch(e) {}
+    if (hasData) dt.innerHTML = rows;
+  } catch(e) { console.error('[TwelveData] 국내주식 오류:', e); }
 
-  // 3. 해외 주요 종목 — 1 call
+  // 3. 해외 주요 종목
   try {
     const syms = 'NVDA,AAPL,MSFT,GOOGL,TSLA,META,AMZN';
     const r = await fetch(`${B}/quote?symbol=${syms}&apikey=${tdKey}`);
     const d = await r.json();
+    console.log('[TwelveData] 해외주식 응답:', d);
     const names   = {NVDA:'NVIDIA',AAPL:'Apple',MSFT:'Microsoft',GOOGL:'Alphabet',TSLA:'Tesla',META:'Meta',AMZN:'Amazon'};
     const targets = {NVDA:'$1,100',AAPL:'$220',MSFT:'$480',GOOGL:'$200',TSLA:'$220',META:'$560',AMZN:'$220'};
     const gt = document.getElementById('global-table');
-    gt.innerHTML = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총(B)</th><th>PER</th><th>목표가</th><th>추세</th></tr>';
+    let rows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총(B)</th><th>PER</th><th>목표가</th><th>추세</th></tr>';
+    let hasData = false;
     Object.entries(d).forEach(([sym, q]) => {
       if (!q || q.status === 'error') return;
+      hasData = true;
       const up = isUp(q.change);
-      gt.innerHTML += `<tr>
+      rows += `<tr>
         <td class="ticker">${sym}</td>
         <td style="color:var(--text)">${names[sym]||sym}</td>
         <td class="num">${fmtUsd(q.close)}</td>
@@ -1428,12 +1445,14 @@ async function fetchMarketData() {
         <td>${generateSparkSVG(up)}</td>
       </tr>`;
     });
-  } catch(e) {}
+    if (hasData) gt.innerHTML = rows;
+  } catch(e) { console.error('[TwelveData] 해외주식 오류:', e); }
 
-  // 4. 미니 차트용 30일 시계열 — 1 call
+  // 4. 미니 차트용 30일 시계열
   try {
     const r = await fetch(`${B}/time_series?symbol=KOSPI,KOSDAQ,SPX,IXIC&interval=1day&outputsize=30&apikey=${tdKey}`);
     const d = await r.json();
+    console.log('[TwelveData] 시계열 응답:', d);
     const cfg = {
       KOSPI:  {id:'chart-kospi',  color:'#C9A84C', fill:'rgba(201,168,76,0.08)'},
       KOSDAQ: {id:'chart-kosdaq', color:'#E05252', fill:'rgba(224,82,82,0.08)'},
@@ -1454,7 +1473,7 @@ async function fetchMarketData() {
         options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{enabled:false}}, scales:{x:{display:false},y:{display:false}}}
       });
     });
-  } catch(e) {}
+  } catch(e) { console.error('[TwelveData] 시계열 오류:', e); }
 }
 
 // Portfolio Chart
