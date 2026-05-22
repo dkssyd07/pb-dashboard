@@ -1029,20 +1029,88 @@
   </div>
 </div>
 
-<!-- 로그인 오버레이 -->
-<div id="auth-overlay" style="position:fixed;inset:0;background:rgba(10,12,15,0.97);z-index:2000;display:flex;align-items:center;justify-content:center;flex-direction:column">
-  <div style="font-family:'DM Serif Display',serif;font-size:38px;color:#C9A84C;letter-spacing:0.08em;margin-bottom:4px">EGY</div>
-  <div style="font-size:10px;color:#5A6070;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:40px">Investment Advisory</div>
-  <div style="background:#111318;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:36px;width:340px">
-    <div id="auth-error" style="display:none;padding:8px 12px;background:rgba(224,82,82,0.12);border:1px solid rgba(224,82,82,0.3);border-radius:6px;font-size:12px;color:#E05252;margin-bottom:14px"></div>
-    <input id="auth-email" type="email" placeholder="이메일" autocomplete="email"
-      style="width:100%;display:block;background:#181C22;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 14px;color:#F0EDE6;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:10px;box-sizing:border-box">
-    <input id="auth-pw" type="password" placeholder="비밀번호" autocomplete="current-password"
-      style="width:100%;display:block;background:#181C22;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 14px;color:#F0EDE6;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:18px;box-sizing:border-box">
-    <button onclick="doLogin()" style="width:100%;display:block;background:#C9A84C;border:none;border-radius:8px;padding:11px;color:#0A0C0F;font-weight:600;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px">로그인</button>
-    <button onclick="doSignup()" style="width:100%;display:block;background:transparent;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:11px;color:#9AA0B0;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">회원가입</button>
+<!-- 로그인 / 회원가입 페이지 -->
+<div id="auth-overlay" style="position:fixed;inset:0;z-index:2000;display:flex;align-items:stretch;font-family:'DM Sans',sans-serif">
+
+  <!-- 왼쪽 브랜딩 패널 -->
+  <div style="flex:1;background:linear-gradient(145deg,#0D1117 0%,#131A26 60%,#0A0C0F 100%);display:flex;flex-direction:column;justify-content:center;padding:64px;position:relative;overflow:hidden;border-right:1px solid rgba(201,168,76,0.12)">
+    <div style="position:absolute;top:-80px;right:-80px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,0.07) 0%,transparent 70%);pointer-events:none"></div>
+    <div style="position:absolute;bottom:-120px;left:-40px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(91,143,232,0.05) 0%,transparent 70%);pointer-events:none"></div>
+    <div style="position:relative">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px">
+        <span style="font-family:'DM Serif Display',serif;font-size:44px;color:#C9A84C;letter-spacing:0.06em">EGY</span>
+        <span style="font-size:10px;color:#3A4050;letter-spacing:0.28em;text-transform:uppercase">Investment Advisory</span>
+      </div>
+      <div style="width:40px;height:1px;background:linear-gradient(90deg,#C9A84C,transparent);margin-bottom:40px"></div>
+      <div style="font-family:'DM Serif Display',serif;font-size:30px;color:#F0EDE6;line-height:1.45;margin-bottom:14px">프라이빗 투자의<br><em style="color:#C9A84C;font-style:italic">새로운 기준</em></div>
+      <div style="font-size:13px;color:#4A5568;line-height:1.9;margin-bottom:48px">전문 투자자문과 AI 기반 분석으로<br>최상의 투자 인사이트를 제공합니다.</div>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:34px;height:34px;border-radius:9px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.18);display:flex;align-items:center;justify-content:center;color:#C9A84C;font-size:15px;flex-shrink:0">◈</div>
+          <div><div style="font-size:13px;color:#D0CCC4;font-weight:500">실시간 시장 데이터</div><div style="font-size:11px;color:#4A5568;margin-top:2px">KOSPI · KOSDAQ · S&P500 · NASDAQ</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:34px;height:34px;border-radius:9px;background:rgba(91,143,232,0.08);border:1px solid rgba(91,143,232,0.18);display:flex;align-items:center;justify-content:center;color:#5B8FE8;font-size:15px;flex-shrink:0">▣</div>
+          <div><div style="font-size:13px;color:#D0CCC4;font-weight:500">AI 리포트 분석</div><div style="font-size:11px;color:#4A5568;margin-top:2px">Goldman Sachs · FN가이드 · 한투증권</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:34px;height:34px;border-radius:9px;background:rgba(46,204,138,0.08);border:1px solid rgba(46,204,138,0.18);display:flex;align-items:center;justify-content:center;color:#2ECC8A;font-size:15px;flex-shrink:0">▦</div>
+          <div><div style="font-size:13px;color:#D0CCC4;font-weight:500">포트폴리오 자동 구성</div><div style="font-size:11px;color:#4A5568;margin-top:2px">AI 기반 맞춤 포트폴리오 추천</div></div>
+        </div>
+      </div>
+    </div>
   </div>
-  <div style="margin-top:20px;font-size:11px;color:#5A6070">EGY Investment Advisory — 내부 전용 시스템</div>
+
+  <!-- 오른쪽 폼 패널 -->
+  <div style="width:460px;display:flex;flex-direction:column;justify-content:center;padding:64px 52px;background:#0A0C0F">
+    <div style="margin-bottom:32px">
+      <div id="auth-form-title" style="font-family:'DM Serif Display',serif;font-size:26px;color:#F0EDE6;line-height:1.4;margin-bottom:8px">다시 오신 것을<br>환영합니다</div>
+      <div id="auth-form-sub" style="font-size:13px;color:#4A5568">계정에 로그인하여 대시보드에 접근하세요.</div>
+    </div>
+
+    <!-- 탭 -->
+    <div style="display:flex;background:#111318;border-radius:9px;padding:3px;margin-bottom:28px;border:1px solid rgba(255,255,255,0.05)">
+      <button id="tab-login" onclick="switchAuthMode('login')"
+        style="flex:1;padding:9px;border-radius:7px;border:none;background:#1E2330;color:#F0EDE6;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;transition:all 0.15s">로그인</button>
+      <button id="tab-signup" onclick="switchAuthMode('signup')"
+        style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:#4A5568;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s">회원가입</button>
+    </div>
+
+    <div id="auth-error" style="display:none;padding:10px 14px;background:rgba(224,82,82,0.07);border:1px solid rgba(224,82,82,0.22);border-radius:8px;font-size:12px;color:#E05252;margin-bottom:16px;line-height:1.6"></div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;color:#4A5568;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:7px">이메일</div>
+      <input id="auth-email" type="email" placeholder="name@company.com" autocomplete="email"
+        style="width:100%;display:block;background:#111318;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:12px 14px;color:#F0EDE6;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;transition:border-color 0.2s"
+        onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.06)'">
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;color:#4A5568;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:7px">비밀번호</div>
+      <input id="auth-pw" type="password" placeholder="••••••••" autocomplete="current-password"
+        style="width:100%;display:block;background:#111318;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:12px 14px;color:#F0EDE6;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;transition:border-color 0.2s"
+        onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.06)'"
+        onkeydown="if(event.key==='Enter')handleAuthSubmit()">
+    </div>
+
+    <div id="pw-confirm-wrap" style="display:none;margin-bottom:14px">
+      <div style="font-size:10px;color:#4A5568;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:7px">비밀번호 확인</div>
+      <input id="auth-pw-confirm" type="password" placeholder="••••••••"
+        style="width:100%;display:block;background:#111318;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:12px 14px;color:#F0EDE6;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;transition:border-color 0.2s"
+        onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.06)'"
+        onkeydown="if(event.key==='Enter')handleAuthSubmit()">
+    </div>
+
+    <button id="auth-submit-btn" onclick="handleAuthSubmit()"
+      style="width:100%;background:linear-gradient(135deg,#C9A84C 0%,#E8C876 100%);border:none;border-radius:8px;padding:13px;color:#0A0C0F;font-weight:700;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:6px;letter-spacing:0.03em">
+      로그인
+    </button>
+
+    <div style="margin-top:36px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.04);text-align:center">
+      <div style="font-size:11px;color:#3A4050;line-height:1.8">EGY Investment Advisory · 내부 전용 시스템<br>무단 접근 시 법적 책임을 질 수 있습니다</div>
+    </div>
+  </div>
+
 </div>
 
 <!-- 관리자 API 키 모달 -->
@@ -1103,6 +1171,32 @@ auth.onAuthStateChanged(async user => {
   }
 });
 
+let authMode = 'login';
+
+function switchAuthMode(mode) {
+  authMode = mode;
+  const isLogin = mode === 'login';
+  const tl = document.getElementById('tab-login');
+  const ts = document.getElementById('tab-signup');
+  tl.style.background = isLogin ? '#1E2330' : 'transparent';
+  tl.style.color = isLogin ? '#F0EDE6' : '#4A5568';
+  ts.style.background = isLogin ? 'transparent' : '#1E2330';
+  ts.style.color = isLogin ? '#4A5568' : '#F0EDE6';
+  document.getElementById('pw-confirm-wrap').style.display = isLogin ? 'none' : 'block';
+  document.getElementById('auth-submit-btn').textContent = isLogin ? '로그인' : '회원가입';
+  document.getElementById('auth-form-title').innerHTML = isLogin
+    ? '다시 오신 것을<br>환영합니다'
+    : '계정을<br>만들어보세요';
+  document.getElementById('auth-form-sub').textContent = isLogin
+    ? '계정에 로그인하여 대시보드에 접근하세요.'
+    : '이메일과 비밀번호로 계정을 생성합니다.';
+  hideAuthError();
+}
+
+function handleAuthSubmit() {
+  if (authMode === 'login') doLogin(); else doSignup();
+}
+
 async function doLogin() {
   const email = document.getElementById('auth-email').value.trim();
   const pw    = document.getElementById('auth-pw').value;
@@ -1113,10 +1207,12 @@ async function doLogin() {
 }
 
 async function doSignup() {
-  const email = document.getElementById('auth-email').value.trim();
-  const pw    = document.getElementById('auth-pw').value;
+  const email     = document.getElementById('auth-email').value.trim();
+  const pw        = document.getElementById('auth-pw').value;
+  const pwConfirm = document.getElementById('auth-pw-confirm').value;
   hideAuthError();
-  if (pw.length < 6) { showAuthError('비밀번호는 6자 이상이어야 합니다.'); return; }
+  if (pw.length < 6)    { showAuthError('비밀번호는 6자 이상이어야 합니다.'); return; }
+  if (pw !== pwConfirm) { showAuthError('비밀번호가 일치하지 않습니다.'); return; }
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pw);
     await db.collection('users').doc(cred.user.uid).set({
