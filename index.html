@@ -659,24 +659,24 @@
       <div class="grid-2">
         <div class="card">
           <div class="section-title">국내주식 TOP 5 <small>시가총액 기준</small></div>
-          <table>
-            <tr><th>종목</th><th>현재가</th><th>등락</th><th>시총</th></tr>
-            <tr><td class="ticker">005930</td><td class="num">78,400</td><td class="up-text">▲ 1.42%</td><td class="num" style="color:var(--text2)">468T</td></tr>
-            <tr><td class="ticker">000660</td><td class="num">182,500</td><td class="up-text">▲ 2.14%</td><td class="num" style="color:var(--text2)">133T</td></tr>
-            <tr><td class="ticker">035420</td><td class="num">196,000</td><td class="down-text">▼ 0.51%</td><td class="num" style="color:var(--text2)">64T</td></tr>
-            <tr><td class="ticker">051910</td><td class="num">388,500</td><td class="down-text">▼ 1.02%</td><td class="num" style="color:var(--text2)">54T</td></tr>
-            <tr><td class="ticker">006400</td><td class="num">278,000</td><td class="up-text">▲ 0.72%</td><td class="num" style="color:var(--text2)">65T</td></tr>
+          <table id="kr-top5-table">
+            <tr><th>종목</th><th>종목명</th><th>현재가</th><th>등락률</th></tr>
+            <tr><td class="ticker">005930</td><td style="color:var(--text)">삼성전자</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="ticker">000660</td><td style="color:var(--text)">SK하이닉스</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="ticker">035420</td><td style="color:var(--text)">NAVER</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="ticker">051910</td><td style="color:var(--text)">LG화학</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="ticker">006400</td><td style="color:var(--text)">삼성SDI</td><td class="num">—</td><td class="num">—</td></tr>
           </table>
         </div>
         <div class="card">
           <div class="section-title">해외주식 TOP 5 <small>주요 빅테크</small></div>
-          <table>
-            <tr><th>티커</th><th>현재가</th><th>등락</th><th>섹터</th></tr>
-            <tr><td class="ticker">NVDA</td><td class="num">$875.40</td><td class="up-text">▲ 3.12%</td><td style="color:var(--text3);font-size:11px">반도체</td></tr>
-            <tr><td class="ticker">AAPL</td><td class="num">$182.74</td><td class="down-text">▼ 0.28%</td><td style="color:var(--text3);font-size:11px">소비자</td></tr>
-            <tr><td class="ticker">MSFT</td><td class="num">$414.50</td><td class="up-text">▲ 0.94%</td><td style="color:var(--text3);font-size:11px">클라우드</td></tr>
-            <tr><td class="ticker">GOOGL</td><td class="num">$166.32</td><td class="up-text">▲ 1.18%</td><td style="color:var(--text3);font-size:11px">광고/AI</td></tr>
-            <tr><td class="ticker">TSLA</td><td class="num">$182.19</td><td class="down-text">▼ 2.41%</td><td style="color:var(--text3);font-size:11px">전기차</td></tr>
+          <table id="us-top5-table">
+            <tr><th>티커</th><th>회사명</th><th>현재가</th><th>등락률</th></tr>
+            <tr><td class="ticker">NVDA</td><td style="color:var(--text)">NVIDIA</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="ticker">AAPL</td><td style="color:var(--text)">Apple</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="ticker">MSFT</td><td style="color:var(--text)">Microsoft</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="ticker">GOOGL</td><td style="color:var(--text)">Alphabet</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td class="ticker">TSLA</td><td style="color:var(--text)">Tesla</td><td class="num">—</td><td class="num">—</td></tr>
           </table>
         </div>
       </div>
@@ -1311,10 +1311,13 @@ function parseYF(result) {
   if (!result) return null;
   const m = result.meta;
   const closes = (result.indicators?.quote?.[0]?.close || []).filter(v => v != null);
+  const prevClose = m.previousClose || m.chartPreviousClose || 0;
+  const change = m.regularMarketChange ?? (prevClose ? m.regularMarketPrice - prevClose : 0);
+  const pct = m.regularMarketChangePercent ?? (prevClose ? (change / prevClose * 100) : 0);
   return {
     price:  m.regularMarketPrice,
-    change: m.regularMarketChange ?? (m.regularMarketPrice - (m.previousClose || m.chartPreviousClose || m.regularMarketPrice)),
-    pct:    m.regularMarketChangePercent ?? 0,
+    change,
+    pct,
     volume: m.regularMarketVolume ?? 0,
     closes
   };
@@ -1388,6 +1391,23 @@ async function fetchMarketData() {
   });
   dt.innerHTML = krRows;
 
+  // TOP5 국내 업데이트 (첫 5개 사용)
+  const krTop5 = document.getElementById('kr-top5-table');
+  if (krTop5) {
+    let top5Rows = '<tr><th>종목</th><th>종목명</th><th>현재가</th><th>등락률</th></tr>';
+    krResults.slice(0, 5).forEach((r, i) => {
+      const q = parseYF(r); if (!q) return;
+      const sym = krSyms[i], code = sym.replace('.KS',''), up = isUp(q.pct);
+      top5Rows += `<tr>
+        <td class="ticker">${code}</td>
+        <td style="color:var(--text)">${krNames[sym]||code}</td>
+        <td class="num">${fmtKrw(q.price)}</td>
+        <td class="${up?'up-text':'down-text'}">${fmtPct(q.pct)}</td>
+      </tr>`;
+    });
+    krTop5.innerHTML = top5Rows;
+  }
+
   // 3. 해외 주요 종목 — 병렬 fetch
   const usSyms    = ['NVDA','AAPL','MSFT','GOOGL','TSLA','META','AMZN'];
   const usNames   = {NVDA:'NVIDIA',AAPL:'Apple',MSFT:'Microsoft',GOOGL:'Alphabet',TSLA:'Tesla',META:'Meta',AMZN:'Amazon'};
@@ -1411,6 +1431,24 @@ async function fetchMarketData() {
     </tr>`;
   });
   gt.innerHTML = usRows;
+
+  // TOP5 해외 업데이트 (첫 5개 사용)
+  const usTop5 = document.getElementById('us-top5-table');
+  const usSectors = {NVDA:'반도체',AAPL:'소비자',MSFT:'클라우드',GOOGL:'광고/AI',TSLA:'전기차'};
+  if (usTop5) {
+    let usTop5Rows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>등락률</th></tr>';
+    usResults.slice(0, 5).forEach((r, i) => {
+      const q = parseYF(r); if (!q) return;
+      const sym = usSyms[i], up = isUp(q.pct);
+      usTop5Rows += `<tr>
+        <td class="ticker">${sym}</td>
+        <td style="color:var(--text)">${usNames[sym]||sym}</td>
+        <td class="num">${fmtUsd(q.price)}</td>
+        <td class="${up?'up-text':'down-text'}">${fmtPct(q.pct)}</td>
+      </tr>`;
+    });
+    usTop5.innerHTML = usTop5Rows;
+  }
 }
 
 // Portfolio Chart
