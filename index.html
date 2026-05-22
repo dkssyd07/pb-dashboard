@@ -586,7 +586,46 @@
         <div>
           <div class="card">
             <div class="section-title">주요 지수 추이 <small>최근 30거래일</small></div>
-            <canvas id="indexChart" height="160"></canvas>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div>
+                <div style="font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">🇰🇷 한국장</div>
+                <div style="margin-bottom:16px">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">KOSPI</span>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--green)">▲ 1.24%</span>
+                  </div>
+                  <div style="font-family:var(--font-mono);font-size:20px;color:var(--text);margin-bottom:6px">2,648.24</div>
+                  <div style="height:60px;position:relative"><canvas id="chart-kospi"></canvas></div>
+                </div>
+                <div>
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">KOSDAQ</span>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--red)">▼ 0.31%</span>
+                  </div>
+                  <div style="font-family:var(--font-mono);font-size:20px;color:var(--text);margin-bottom:6px">773.18</div>
+                  <div style="height:60px;position:relative"><canvas id="chart-kosdaq"></canvas></div>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">🇺🇸 미국장</div>
+                <div style="margin-bottom:16px">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">S&P 500</span>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--green)">▲ 0.87%</span>
+                  </div>
+                  <div style="font-family:var(--font-mono);font-size:20px;color:var(--text);margin-bottom:6px">5,312.41</div>
+                  <div style="height:60px;position:relative"><canvas id="chart-sp500"></canvas></div>
+                </div>
+                <div>
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">NASDAQ</span>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--green)">▲ 1.02%</span>
+                  </div>
+                  <div style="font-family:var(--font-mono);font-size:20px;color:var(--text);margin-bottom:6px">16,742.39</div>
+                  <div style="height:60px;position:relative"><canvas id="chart-nasdaq"></canvas></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="card">
@@ -1017,35 +1056,34 @@ function saveApiKey() {
   }
 }
 
-// Index Chart
-const ctx = document.getElementById('indexChart').getContext('2d');
-const labels = Array.from({length:30},(_,i)=> {
+// Index Charts — 4-panel (한국장 / 미국장)
+const chartLabels = Array.from({length:30},(_,i)=> {
   const d = new Date(); d.setDate(d.getDate()-29+i);
   return (d.getMonth()+1)+'/'+(d.getDate());
 });
 function makeData(base, vol) {
   let v = base;
-  return labels.map(()=> { v += (Math.random()-0.48)*vol; return Math.round(v*100)/100; });
+  return chartLabels.map(()=> { v += (Math.random()-0.48)*vol; return Math.round(v*100)/100; });
 }
-new Chart(ctx, {
-  type:'line',
-  data: {
-    labels,
-    datasets: [
-      {label:'KOSPI', data:makeData(2580,18), borderColor:'#C9A84C', borderWidth:1.5, pointRadius:0, tension:0.4},
-      {label:'S&P500(×0.5)', data:makeData(2650,14), borderColor:'#5B8FE8', borderWidth:1.5, pointRadius:0, tension:0.4},
-      {label:'NASDAQ(×0.16)', data:makeData(2640,22), borderColor:'#2ECC8A', borderWidth:1.5, pointRadius:0, tension:0.4}
-    ]
-  },
-  options: {
-    responsive:true, maintainAspectRatio:false,
-    plugins: {legend:{labels:{color:'#9AA0B0',font:{size:11},boxWidth:20,padding:16}}},
-    scales: {
-      x:{ticks:{color:'#5A6070',font:{size:10},maxTicksLimit:8}, grid:{color:'rgba(255,255,255,0.04)'}},
-      y:{ticks:{color:'#5A6070',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'}}
+function makeMiniChart(canvasId, base, vol, color, fillColor) {
+  const el = document.getElementById(canvasId);
+  new Chart(el.getContext('2d'), {
+    type:'line',
+    data: {
+      labels: chartLabels,
+      datasets:[{data:makeData(base,vol), borderColor:color, borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, backgroundColor:fillColor}]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{x:{display:false},y:{display:false}}
     }
-  }
-});
+  });
+}
+makeMiniChart('chart-kospi',  2580,  18, '#C9A84C', 'rgba(201,168,76,0.08)');
+makeMiniChart('chart-kosdaq',  755,   6, '#E05252', 'rgba(224,82,82,0.08)');
+makeMiniChart('chart-sp500',  5260,  28, '#5B8FE8', 'rgba(91,143,232,0.08)');
+makeMiniChart('chart-nasdaq', 16550, 90, '#2ECC8A', 'rgba(46,204,138,0.08)');
 
 // Portfolio Chart
 const portCtx = document.getElementById('portChart').getContext('2d');
