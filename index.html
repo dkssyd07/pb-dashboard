@@ -1094,7 +1094,8 @@ makeMiniChart('chart-nasdaq', 16550, 90, '#2ECC8A', 'rgba(46,204,138,0.08)');
 
 // ── Twelve Data 실시간 연동 ──
 const TD_STORAGE_KEY = 'atlas_td_key';
-let tdKey = localStorage.getItem(TD_STORAGE_KEY) || '';
+const TD_INJECTED = 'TWELVE_DATA_KEY_PLACEHOLDER';
+let tdKey = localStorage.getItem(TD_STORAGE_KEY) || (TD_INJECTED.startsWith('TWELVE') ? '' : TD_INJECTED);
 
 function saveTdKey() {
   const val = document.getElementById('tdKeyInput').value.trim();
