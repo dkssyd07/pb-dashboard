@@ -1387,7 +1387,61 @@ makeMiniChart('chart-kosdaq',  755,   6, '#E05252', 'rgba(224,82,82,0.08)');
 makeMiniChart('chart-sp500',  5260,  28, '#5B8FE8', 'rgba(91,143,232,0.08)');
 makeMiniChart('chart-nasdaq', 16550, 90, '#2ECC8A', 'rgba(46,204,138,0.08)');
 
-// ── Yahoo Finance 실시간 연동 (API 키 불필요) ──
+// ── 백엔드 설정 (Render 배포 후 URL 입력) ──
+// Render 배포 완료 후 아래 URL을 실제 주소로 변경하세요
+const BACKEND_URL = '';  // 예: 'https://egy-investment-api.onrender.com'
+
+// KIS 백엔드 API 헬퍼
+async function kisIndex() {
+  if (!BACKEND_URL) return null;
+  try {
+    const r = await fetch(`${BACKEND_URL}/api/index/kr`);
+    return await r.json();
+  } catch(e) { return null; }
+}
+async function kisQuotes(codes) {
+  if (!BACKEND_URL) return [];
+  try {
+    const r = await fetch(`${BACKEND_URL}/api/quotes/kr`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes })
+    });
+    return await r.json();
+  } catch(e) { return []; }
+}
+async function kisChart(code, range = '1mo') {
+  if (!BACKEND_URL) return null;
+  try {
+    const r = await fetch(`${BACKEND_URL}/api/chart/kr/${code}?range=${range}`);
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+// KIS 데이터 → 공통 포맷 변환
+function parseKIS(q) {
+  if (!q) return null;
+  const price  = parseInt(q.stck_prpr);
+  const change = parseInt(q.prdy_vrss) * (['4','5'].includes(q.prdy_vrss_sign) ? -1 : 1);
+  const pct    = parseFloat(q.prdy_ctrt) * (['4','5'].includes(q.prdy_vrss_sign) ? -1 : 1);
+  return {
+    price, change, pct,
+    volume:       parseInt(q.acml_vol || 0),
+    high52:       parseInt(q.w52_hgpr || 0),
+    low52:        parseInt(q.w52_lwpr || 0),
+    per:          q.per || '—',
+    regularMarketPrice:         price,
+    regularMarketChange:        change,
+    regularMarketChangePercent: pct,
+    regularMarketVolume:        parseInt(q.acml_vol || 0),
+    fiftyTwoWeekHigh:           parseInt(q.w52_hgpr || 0),
+    fiftyTwoWeekLow:            parseInt(q.w52_lwpr || 0),
+    trailingPE:   parseFloat(q.per) || null,
+    marketCap:    null
+  };
+}
+
+// ── Yahoo Finance 실시간 연동 (미국 주식 / 백엔드 없을 때 폴백) ──
 
 function setTdStatus(msg, color) {
   const el = document.getElementById('td-status');
@@ -1431,33 +1485,62 @@ const US_NAMES = {NVDA:'NVIDIA',AAPL:'Apple',MSFT:'Microsoft',GOOGL:'Alphabet',T
 
 async function fetchMarketData() {
   setTdStatus('실시간 데이터 로딩 중...', 'var(--text3)');
+  const useKIS = !!BACKEND_URL;
 
-  const allSyms = ['^KS11','^KQ11','^GSPC','^IXIC', ...KR_SYMS, ...US_SYMS];
-  const [quotes, kospiC, kosdaqC, spxC, ixicC] = await Promise.all([
-    fetchYFQuote(allSyms),
+  // ── 병렬 데이터 수집 ──
+  const krCodes = KR_SYMS.map(s => s.replace('.KS',''));
+  const [
+    yfQuotes, kospiC, kosdaqC, spxC, ixicC,
+    kisIdxData, kisQData
+  ] = await Promise.all([
+    fetchYFQuote(['^KS11','^KQ11','^GSPC','^IXIC', ...US_SYMS]),
     fetchYFChart('^KS11','1mo'), fetchYFChart('^KQ11','1mo'),
     fetchYFChart('^GSPC','1mo'), fetchYFChart('^IXIC','1mo'),
+    useKIS ? kisIndex()        : Promise.resolve(null),
+    useKIS ? kisQuotes(krCodes): Promise.resolve([]),
   ]);
 
-  // 1. 주요 지수 카드
-  const idxMap = [
-    ['^KS11','kospi',  v => parseInt(v).toLocaleString('ko-KR')],
-    ['^KQ11','kosdaq', v => parseInt(v).toLocaleString('ko-KR')],
-    ['^GSPC','sp500',  v => parseFloat(v).toLocaleString('en-US',{minimumFractionDigits:2})],
-    ['^IXIC','nasdaq', v => parseFloat(v).toLocaleString('en-US',{minimumFractionDigits:2})],
-  ];
+  // KIS 결과 → 맵
+  const kisMap = {};
+  (kisQData || []).forEach(({ code, q }) => { if (q) kisMap[code] = parseKIS(q); });
+
+  // ── 1. 주요 지수 카드 ──
+  // 한국 지수: KIS 우선, 폴백 YF
+  const idxData = {
+    kospi:  useKIS && kisIdxData?.kospi
+              ? { price: parseFloat(kisIdxData.kospi.bstp_nmix_prpr),
+                  pct:   parseFloat(kisIdxData.kospi.bstp_nmix_prdy_ctrt) }
+              : yfQuotes['^KS11']
+                  ? { price: yfQuotes['^KS11'].regularMarketPrice, pct: yfQuotes['^KS11'].regularMarketChangePercent }
+                  : null,
+    kosdaq: useKIS && kisIdxData?.kosdaq
+              ? { price: parseFloat(kisIdxData.kosdaq.bstp_nmix_prpr),
+                  pct:   parseFloat(kisIdxData.kosdaq.bstp_nmix_prdy_ctrt) }
+              : yfQuotes['^KQ11']
+                  ? { price: yfQuotes['^KQ11'].regularMarketPrice, pct: yfQuotes['^KQ11'].regularMarketChangePercent }
+                  : null,
+    sp500:  yfQuotes['^GSPC'] ? { price: yfQuotes['^GSPC'].regularMarketPrice, pct: yfQuotes['^GSPC'].regularMarketChangePercent } : null,
+    nasdaq: yfQuotes['^IXIC'] ? { price: yfQuotes['^IXIC'].regularMarketPrice, pct: yfQuotes['^IXIC'].regularMarketChangePercent } : null,
+  };
+
   let updated = 0;
-  idxMap.forEach(([sym, id, fmt]) => {
-    const q = quotes[sym]; if (!q) return;
-    document.getElementById(`${id}-val`).textContent = fmt(q.regularMarketPrice);
+  [['kospi', v => parseInt(v).toLocaleString('ko-KR')],
+   ['kosdaq',v => parseInt(v).toLocaleString('ko-KR')],
+   ['sp500', v => parseFloat(v).toLocaleString('en-US',{minimumFractionDigits:2})],
+   ['nasdaq',v => parseFloat(v).toLocaleString('en-US',{minimumFractionDigits:2})]
+  ].forEach(([id, fmt]) => {
+    const d = idxData[id]; if (!d) return;
+    document.getElementById(`${id}-val`).textContent = fmt(d.price);
     const el = document.getElementById(`${id}-chg`);
-    el.textContent = fmtPct(q.regularMarketChangePercent);
-    el.className = `card-change ${q.regularMarketChangePercent >= 0 ? 'up' : 'down'}`;
+    el.textContent = fmtPct(d.pct);
+    el.className = `card-change ${d.pct >= 0 ? 'up' : 'down'}`;
     updated++;
   });
-  setTdStatus(updated > 0 ? '✓ 실시간 연결됨' : '데이터 로딩 실패 — 새로고침', updated > 0 ? 'var(--green)' : 'var(--red)');
 
-  // 미니 차트 (히스토리)
+  const src = useKIS ? '✓ KIS 실시간 연결됨' : '✓ Yahoo Finance 연결됨';
+  setTdStatus(updated > 0 ? src : '데이터 로딩 실패 — 새로고침', updated > 0 ? 'var(--green)' : 'var(--red)');
+
+  // 미니 차트 (Yahoo Finance 히스토리)
   [[kospiC,'chart-kospi','#C9A84C','rgba(201,168,76,0.08)'],
    [kosdaqC,'chart-kosdaq','#E05252','rgba(224,82,82,0.08)'],
    [spxC,'chart-sp500','#5B8FE8','rgba(91,143,232,0.08)'],
@@ -1475,16 +1558,36 @@ async function fetchMarketData() {
     });
   });
 
-  // 2. 국내 종목 테이블
+  // ── 2. 국내 종목 테이블 (KIS 우선 / YF 폴백) ──
+  // YF 결과도 받아두기 (KIS 실패 시 사용)
+  const yfKrQuotes = useKIS ? {} : await fetchYFQuote(KR_SYMS).catch(() => ({}));
+
+  function getKrQuote(sym) {
+    const code = sym.replace('.KS','');
+    if (useKIS && kisMap[code]) return kisMap[code];
+    const yq = yfQuotes[sym] || yfKrQuotes[sym];
+    if (!yq) return null;
+    return {
+      regularMarketPrice:         yq.regularMarketPrice,
+      regularMarketChange:        yq.regularMarketChange,
+      regularMarketChangePercent: yq.regularMarketChangePercent,
+      regularMarketVolume:        yq.regularMarketVolume || 0,
+      fiftyTwoWeekHigh:           yq.fiftyTwoWeekHigh || 0,
+      fiftyTwoWeekLow:            yq.fiftyTwoWeekLow  || 0,
+      trailingPE:                 yq.trailingPE || null,
+      marketCap:                  yq.marketCap  || null
+    };
+  }
+
   const dt = document.getElementById('domestic-table');
   let krRows = '<tr><th>종목코드</th><th>종목명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>거래량</th><th>52주 고/저</th><th>PER</th><th>추세</th></tr>';
   KR_SYMS.forEach(sym => {
-    const q = quotes[sym]; if (!q) return;
+    const q = getKrQuote(sym); if (!q) return;
     const code = sym.replace('.KS',''), up = q.regularMarketChangePercent >= 0;
     const hi52 = q.fiftyTwoWeekHigh ? fmtKrw(q.fiftyTwoWeekHigh) : '—';
     const lo52 = q.fiftyTwoWeekLow  ? fmtKrw(q.fiftyTwoWeekLow)  : '—';
-    const per  = q.trailingPE ? q.trailingPE.toFixed(1) : '—';
-    krRows += `<tr onclick="openStockModal('${sym}','${KR_NAMES[sym]||code}',true)">
+    const per  = q.trailingPE ? parseFloat(q.trailingPE).toFixed(1) : '—';
+    krRows += `<tr onclick="openStockModal('${code}','${KR_NAMES[sym]||code}',true)">
       <td class="ticker">${code}</td>
       <td style="color:var(--text)">${KR_NAMES[sym]||code}</td>
       <td class="num">${fmtKrw(q.regularMarketPrice)}</td>
@@ -1503,9 +1606,9 @@ async function fetchMarketData() {
   if (krTop5) {
     let rows = '<tr><th>종목</th><th>종목명</th><th>현재가</th><th>등락률</th></tr>';
     KR_SYMS.slice(0, 5).forEach(sym => {
-      const q = quotes[sym]; if (!q) return;
+      const q = getKrQuote(sym); if (!q) return;
       const code = sym.replace('.KS',''), up = q.regularMarketChangePercent >= 0;
-      rows += `<tr onclick="openStockModal('${sym}','${KR_NAMES[sym]||code}',true)">
+      rows += `<tr onclick="openStockModal('${code}','${KR_NAMES[sym]||code}',true)">
         <td class="ticker">${code}</td>
         <td style="color:var(--text)">${KR_NAMES[sym]||code}</td>
         <td class="num">${fmtKrw(q.regularMarketPrice)}</td>
@@ -1515,11 +1618,11 @@ async function fetchMarketData() {
     krTop5.innerHTML = rows;
   }
 
-  // 3. 해외 종목 테이블
+  // ── 3. 해외 종목 테이블 (Yahoo Finance) ──
   const gt = document.getElementById('global-table');
   let usRows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총</th><th>PER</th><th>52주 범위</th><th>추세</th></tr>';
   US_SYMS.forEach(sym => {
-    const q = quotes[sym]; if (!q) return;
+    const q = yfQuotes[sym]; if (!q) return;
     const up = q.regularMarketChangePercent >= 0;
     const hi52 = q.fiftyTwoWeekHigh ? fmtUsd(q.fiftyTwoWeekHigh) : '—';
     const lo52 = q.fiftyTwoWeekLow  ? fmtUsd(q.fiftyTwoWeekLow)  : '—';
@@ -1543,7 +1646,7 @@ async function fetchMarketData() {
   if (usTop5) {
     let rows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>등락률</th></tr>';
     US_SYMS.slice(0, 5).forEach(sym => {
-      const q = quotes[sym]; if (!q) return;
+      const q = yfQuotes[sym]; if (!q) return;
       const up = q.regularMarketChangePercent >= 0;
       rows += `<tr onclick="openStockModal('${sym}','${US_NAMES[sym]||sym}',false)">
         <td class="ticker">${sym}</td>
@@ -1636,8 +1739,14 @@ async function renderStockCharts(symbol, range, isKr) {
   document.getElementById('modal-loading').style.display = 'block';
   document.getElementById('modal-charts').style.display  = 'none';
 
-  const [qmap, chartData] = await Promise.all([fetchYFQuote(symbol), fetchYFChart(symbol, range)]);
-  const q = qmap[symbol] || qmap[symbol.toUpperCase()];
+  // 한국 주식: KIS 백엔드 우선, 폴백 Yahoo Finance
+  const yfSym = isKr ? (symbol.includes('.') ? symbol : symbol + '.KS') : symbol;
+  const [qmap, chartRaw, kisChartRows] = await Promise.all([
+    fetchYFQuote(yfSym),
+    isKr ? null : fetchYFChart(symbol, range),
+    (isKr && BACKEND_URL) ? kisChart(symbol.replace('.KS','').replace('.KQ',''), range) : Promise.resolve(null),
+  ]);
+  const q = qmap[yfSym] || qmap[symbol];
 
   document.getElementById('modal-loading').style.display = 'none';
 
@@ -1657,16 +1766,43 @@ async function renderStockCharts(symbol, range, isKr) {
     document.getElementById('modal-stats').style.display = 'grid';
   }
 
-  if (chartData) {
-    const raw    = chartData.indicators?.quote?.[0] || {};
-    const ts     = chartData.timestamp || [];
+  // 차트 데이터 통합 (KIS or Yahoo Finance)
+  let chartData = null;
+  if (isKr && kisChartRows?.length) {
+    // KIS 일봉 배열: { stck_bsop_date, stck_clpr, acml_vol, ... }
     const labels = [], closes = [], volumes = [];
-    (raw.close || []).forEach((c, i) => {
-      if (c == null) return;
-      closes.push(c); volumes.push(raw.volume?.[i] || 0);
-      const d = new Date(ts[i] * 1000);
-      labels.push(`${d.getMonth()+1}/${d.getDate()}`);
+    kisChartRows.forEach(row => {
+      const dt = row.stck_bsop_date; // "20240101"
+      labels.push(`${parseInt(dt.slice(4,6))}/${parseInt(dt.slice(6,8))}`);
+      closes.push(parseInt(row.stck_clpr));
+      volumes.push(parseInt(row.acml_vol || 0));
     });
+    chartData = { labels, closes, volumes };
+  } else if (!isKr && chartRaw) {
+    chartData = chartRaw; // Yahoo Finance 원본
+  } else if (isKr && !kisChartRows?.length) {
+    // KIS 없으면 Yahoo Finance 폴백
+    const yfc = await fetchYFChart(yfSym, range);
+    chartData = yfc;
+  }
+
+  if (chartData) {
+    let labels, closes, volumes;
+    if (Array.isArray(chartData.labels)) {
+      // KIS 파싱된 형태
+      ({ labels, closes, volumes } = chartData);
+    } else {
+      // Yahoo Finance 원본 형태
+      const raw = chartData.indicators?.quote?.[0] || {};
+      const ts  = chartData.timestamp || [];
+      labels = []; closes = []; volumes = [];
+      (raw.close || []).forEach((c, i) => {
+        if (c == null) return;
+        closes.push(c); volumes.push(raw.volume?.[i] || 0);
+        const d = new Date(ts[i] * 1000);
+        labels.push(`${d.getMonth()+1}/${d.getDate()}`);
+      });
+    }
 
     const ma20 = calcMA(closes, 20);
     const ma60 = calcMA(closes, 60);
