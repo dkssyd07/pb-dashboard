@@ -500,6 +500,54 @@
   .portfolio-bar-wrap { margin: 6px 0; }
   .portfolio-bar { height: 6px; border-radius: 3px; overflow: hidden; display: flex; gap: 2px; }
   .portfolio-bar-seg { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+  /* STOCK SEARCH / DETAIL MODAL */
+  .search-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text3);
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: all 0.15s;
+  }
+  .search-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .stock-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.82);
+    z-index: 2000;
+    align-items: flex-start; justify-content: center;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  .stock-modal-overlay.open { display: flex; }
+  .stock-modal-box {
+    background: #111318;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 28px;
+    width: 920px; max-width: 95vw;
+  }
+  .range-btn {
+    padding: 5px 14px;
+    border-radius: 6px; font-size: 11px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent; color: var(--text3);
+    transition: all 0.15s;
+  }
+  .range-btn.active { background: var(--bg4); color: var(--text); border-color: var(--border2); }
+  .range-btn:hover:not(.active) { color: var(--text); }
+  .ind-label {
+    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text3); margin-bottom: 4px; margin-top: 10px;
+  }
+  tr[onclick] { cursor: pointer; }
+  tr[onclick]:hover td { background: rgba(201,168,76,0.04) !important; }
 </style>
 </head>
 <body>
@@ -554,6 +602,7 @@
     </div>
     <div class="topbar-time" id="clock">--:--:--</div>
     <div id="user-info" style="display:none;font-size:11px;color:var(--text3);font-family:var(--font-mono)"></div>
+    <button class="search-btn" onclick="openStockModal('','',false)">🔍 종목 조회</button>
     <button onclick="doLogout()" style="padding:5px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:11px;cursor:pointer;font-family:var(--font-sans)">로그아웃</button>
   </div>
 
@@ -726,7 +775,7 @@
         <div class="section-title">해외 주요 종목 <small>NYSE / NASDAQ</small></div>
         <div class="table-wrap">
           <table id="global-table">
-            <tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총(B)</th><th>PER</th><th>목표가</th><th>추세</th></tr>
+            <tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총</th><th>PER</th><th>52주 범위</th><th>추세</th></tr>
           </table>
         </div>
       </div>
@@ -1113,6 +1162,59 @@
 </div>
 
 
+<!-- ── 종목 상세 모달 ── -->
+<div class="stock-modal-overlay" id="stock-modal" onclick="if(event.target===this)closeStockModal()">
+  <div class="stock-modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <input id="modal-search-input" type="text" placeholder="티커 입력 (예: AAPL, 005930.KS, ^KS11)" autocomplete="off"
+            style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 14px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none;width:320px;transition:border-color 0.15s"
+            onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border2)'"
+            onkeydown="if(event.key==='Enter')searchStock(this.value)">
+          <button onclick="searchStock(document.getElementById('modal-search-input').value)"
+            style="padding:8px 18px;background:var(--gold);border:none;border-radius:7px;color:#0A0C0F;font-weight:600;font-size:12px;cursor:pointer;font-family:var(--font-sans);white-space:nowrap">조회</button>
+        </div>
+        <div id="modal-ticker" style="font-family:var(--font-mono);font-size:11px;color:var(--text3);letter-spacing:0.12em;margin-bottom:2px">—</div>
+        <div id="modal-name" style="font-family:var(--font-serif);font-size:22px;color:var(--text)">종목을 검색하거나 표에서 클릭하세요</div>
+        <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px">
+          <span id="modal-price" style="font-family:var(--font-mono);font-size:28px;color:var(--text)">—</span>
+          <span id="modal-change" style="font-size:14px;color:var(--text3)">—</span>
+        </div>
+      </div>
+      <button onclick="closeStockModal()" style="background:transparent;border:1px solid var(--border);border-radius:6px;padding:5px 12px;color:var(--text3);font-size:12px;cursor:pointer;flex-shrink:0">✕ 닫기</button>
+    </div>
+
+    <div style="display:flex;gap:6px;margin-bottom:16px">
+      <button class="range-btn active" id="range-1mo" onclick="setChartRange('1mo')">1개월</button>
+      <button class="range-btn" id="range-3mo" onclick="setChartRange('3mo')">3개월</button>
+      <button class="range-btn" id="range-6mo" onclick="setChartRange('6mo')">6개월</button>
+      <button class="range-btn" id="range-1y"  onclick="setChartRange('1y')">1년</button>
+    </div>
+
+    <div id="modal-loading" style="display:none;text-align:center;padding:50px 0;color:var(--text3);font-size:13px">
+      <div style="width:160px;height:2px;background:var(--gold);margin:0 auto 14px;animation:loading 1.5s ease-in-out infinite;transform-origin:left"></div>
+      데이터 로딩 중...
+    </div>
+
+    <div id="modal-charts" style="display:none">
+      <div class="ind-label">가격 · MA20 · MA60</div>
+      <div style="height:240px"><canvas id="modal-price-chart"></canvas></div>
+      <div class="ind-label">거래량</div>
+      <div style="height:68px"><canvas id="modal-vol-chart"></canvas></div>
+      <div class="ind-label">RSI (14) — 과매수 70 / 과매도 30</div>
+      <div style="height:68px"><canvas id="modal-rsi-chart"></canvas></div>
+    </div>
+
+    <div id="modal-stats" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:16px;grid-template-columns:repeat(4,1fr);gap:14px">
+      <div><div class="ind-label" style="margin-top:0">52주 고가</div><div id="modal-52h" style="font-family:var(--font-mono);color:var(--green);margin-top:4px;font-size:15px">—</div></div>
+      <div><div class="ind-label" style="margin-top:0">52주 저가</div><div id="modal-52l" style="font-family:var(--font-mono);color:var(--red);margin-top:4px;font-size:15px">—</div></div>
+      <div><div class="ind-label" style="margin-top:0">시가총액</div><div id="modal-mktcap" style="font-family:var(--font-mono);color:var(--text);margin-top:4px;font-size:15px">—</div></div>
+      <div><div class="ind-label" style="margin-top:0">PER (TTM)</div><div id="modal-per" style="font-family:var(--font-mono);color:var(--text);margin-top:4px;font-size:15px">—</div></div>
+    </div>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -1289,17 +1391,32 @@ makeMiniChart('chart-nasdaq', 16550, 90, '#2ECC8A', 'rgba(46,204,138,0.08)');
 
 function setTdStatus(msg, color) {
   const el = document.getElementById('td-status');
-  el.textContent = msg;
-  el.style.color = color;
+  el.textContent = msg; el.style.color = color;
+}
+function fmtKrw(n)  { return parseInt(n).toLocaleString('ko-KR'); }
+function fmtUsd(n)  { return '$' + parseFloat(n).toFixed(2); }
+function fmtPct(n)  { return (parseFloat(n) >= 0 ? '▲ ' : '▼ ') + Math.abs(parseFloat(n)).toFixed(2) + '%'; }
+function fmtMktCap(v) {
+  if (!v) return '—';
+  if (v >= 1e12) return '$' + (v/1e12).toFixed(2) + 'T';
+  if (v >= 1e9)  return '$' + (v/1e9).toFixed(1) + 'B';
+  return '$' + v.toLocaleString();
 }
 
-function fmtKrw(n) { return parseInt(n).toLocaleString('ko-KR'); }
-function fmtUsd(n) { return '$' + parseFloat(n).toFixed(2); }
-function fmtPct(n) { return (parseFloat(n) >= 0 ? '▲ ' : '▼ ') + Math.abs(parseFloat(n)).toFixed(2) + '%'; }
-function isUp(n)   { return parseFloat(n) >= 0; }
+// v1/finance/quote — 정확한 실시간 현재가/등락률 (배치 가능)
+async function fetchYFQuote(symbols) {
+  const symsStr = Array.isArray(symbols) ? symbols.join(',') : symbols;
+  const url = `https://query1.finance.yahoo.com/v1/finance/quote?symbols=${encodeURIComponent(symsStr)}`;
+  try {
+    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+    const d = await r.json();
+    return (d.quoteResponse?.result || []).reduce((m, q) => { m[q.symbol] = q; return m; }, {});
+  } catch(e) { return {}; }
+}
 
-async function fetchYF(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1mo`;
+// v8/finance/chart — OHLCV 히스토리 (차트용)
+async function fetchYFChart(symbol, range = '1mo') {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${range}`;
   try {
     const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
     const d = await r.json();
@@ -1307,147 +1424,312 @@ async function fetchYF(symbol) {
   } catch(e) { return null; }
 }
 
-function parseYF(result) {
-  if (!result) return null;
-  const m = result.meta;
-  const closes = (result.indicators?.quote?.[0]?.close || []).filter(v => v != null);
-  const prevClose = m.previousClose || m.chartPreviousClose || 0;
-  const change = m.regularMarketChange ?? (prevClose ? m.regularMarketPrice - prevClose : 0);
-  const pct = m.regularMarketChangePercent ?? (prevClose ? (change / prevClose * 100) : 0);
-  return {
-    price:  m.regularMarketPrice,
-    change,
-    pct,
-    volume: m.regularMarketVolume ?? 0,
-    closes
-  };
-}
+const KR_SYMS  = ['005930.KS','000660.KS','035420.KS','051910.KS','006400.KS','035720.KS','028260.KS','003550.KS'];
+const KR_NAMES = {'005930.KS':'삼성전자','000660.KS':'SK하이닉스','035420.KS':'NAVER','051910.KS':'LG화학','006400.KS':'삼성SDI','035720.KS':'카카오','028260.KS':'삼성물산','003550.KS':'LG'};
+const US_SYMS  = ['NVDA','AAPL','MSFT','GOOGL','TSLA','META','AMZN'];
+const US_NAMES = {NVDA:'NVIDIA',AAPL:'Apple',MSFT:'Microsoft',GOOGL:'Alphabet',TSLA:'Tesla',META:'Meta',AMZN:'Amazon'};
 
 async function fetchMarketData() {
   setTdStatus('실시간 데이터 로딩 중...', 'var(--text3)');
 
-  // 1. 주요 지수 — 병렬 fetch
-  const [kospiR, kosdaqR, spxR, ixicR] = await Promise.all([
-    fetchYF('^KS11'), fetchYF('^KQ11'), fetchYF('^GSPC'), fetchYF('^IXIC')
+  const allSyms = ['^KS11','^KQ11','^GSPC','^IXIC', ...KR_SYMS, ...US_SYMS];
+  const [quotes, kospiC, kosdaqC, spxC, ixicC] = await Promise.all([
+    fetchYFQuote(allSyms),
+    fetchYFChart('^KS11','1mo'), fetchYFChart('^KQ11','1mo'),
+    fetchYFChart('^GSPC','1mo'), fetchYFChart('^IXIC','1mo'),
   ]);
 
+  // 1. 주요 지수 카드
   const idxMap = [
-    [parseYF(kospiR),  'kospi',  fmtKrw],
-    [parseYF(kosdaqR), 'kosdaq', fmtKrw],
-    [parseYF(spxR),    'sp500',  v => parseFloat(v).toLocaleString('en-US', {minimumFractionDigits:2})],
-    [parseYF(ixicR),   'nasdaq', v => parseFloat(v).toLocaleString('en-US', {minimumFractionDigits:2})],
+    ['^KS11','kospi',  v => parseInt(v).toLocaleString('ko-KR')],
+    ['^KQ11','kosdaq', v => parseInt(v).toLocaleString('ko-KR')],
+    ['^GSPC','sp500',  v => parseFloat(v).toLocaleString('en-US',{minimumFractionDigits:2})],
+    ['^IXIC','nasdaq', v => parseFloat(v).toLocaleString('en-US',{minimumFractionDigits:2})],
   ];
   let updated = 0;
-  idxMap.forEach(([q, id, fmt]) => {
-    if (!q) return;
-    document.getElementById(`${id}-val`).textContent = fmt(q.price);
+  idxMap.forEach(([sym, id, fmt]) => {
+    const q = quotes[sym]; if (!q) return;
+    document.getElementById(`${id}-val`).textContent = fmt(q.regularMarketPrice);
     const el = document.getElementById(`${id}-chg`);
-    el.textContent = fmtPct(q.pct);
-    el.className = `card-change ${isUp(q.pct) ? 'up' : 'down'}`;
+    el.textContent = fmtPct(q.regularMarketChangePercent);
+    el.className = `card-change ${q.regularMarketChangePercent >= 0 ? 'up' : 'down'}`;
     updated++;
   });
-  setTdStatus(updated > 0 ? '✓ 실시간 연결됨' : '데이터 로딩 실패 — 새로고침 해주세요', updated > 0 ? 'var(--green)' : 'var(--red)');
+  setTdStatus(updated > 0 ? '✓ 실시간 연결됨' : '데이터 로딩 실패 — 새로고침', updated > 0 ? 'var(--green)' : 'var(--red)');
 
-  // 미니 차트 업데이트
-  const chartCfg = [
-    [parseYF(kospiR),  'chart-kospi',  '#C9A84C', 'rgba(201,168,76,0.08)'],
-    [parseYF(kosdaqR), 'chart-kosdaq', '#E05252', 'rgba(224,82,82,0.08)'],
-    [parseYF(spxR),    'chart-sp500',  '#5B8FE8', 'rgba(91,143,232,0.08)'],
-    [parseYF(ixicR),   'chart-nasdaq', '#2ECC8A', 'rgba(46,204,138,0.08)'],
-  ];
-  chartCfg.forEach(([q, id, color, fill]) => {
-    if (!q?.closes?.length) return;
+  // 미니 차트 (히스토리)
+  [[kospiC,'chart-kospi','#C9A84C','rgba(201,168,76,0.08)'],
+   [kosdaqC,'chart-kosdaq','#E05252','rgba(224,82,82,0.08)'],
+   [spxC,'chart-sp500','#5B8FE8','rgba(91,143,232,0.08)'],
+   [ixicC,'chart-nasdaq','#2ECC8A','rgba(46,204,138,0.08)']
+  ].forEach(([r, id, color, fill]) => {
+    if (!r) return;
+    const closes = (r.indicators?.quote?.[0]?.close || []).filter(v => v != null);
+    if (!closes.length) return;
     const el = document.getElementById(id);
-    const existing = Chart.getChart(el);
-    if (existing) existing.destroy();
+    const ex = Chart.getChart(el); if (ex) ex.destroy();
     new Chart(el.getContext('2d'), {
       type:'line',
-      data:{labels: q.closes.map((_,i)=>i), datasets:[{data:q.closes, borderColor:color, borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, backgroundColor:fill}]},
+      data:{labels:closes.map((_,i)=>i), datasets:[{data:closes, borderColor:color, borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, backgroundColor:fill}]},
       options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{enabled:false}}, scales:{x:{display:false},y:{display:false}}}
     });
   });
 
-  // 2. 국내 주요 종목 — 병렬 fetch
-  const krSyms = ['005930.KS','000660.KS','035420.KS','051910.KS','006400.KS','035720.KS','028260.KS','003550.KS'];
-  const krNames = {'005930.KS':'삼성전자','000660.KS':'SK하이닉스','035420.KS':'NAVER','051910.KS':'LG화학','006400.KS':'삼성SDI','035720.KS':'카카오','028260.KS':'삼성물산','003550.KS':'LG'};
-  const krPer   = {'005930.KS':'15.2','000660.KS':'28.4','035420.KS':'32.1','051910.KS':'18.7','006400.KS':'22.3','035720.KS':'41.2','028260.KS':'12.4','003550.KS':'9.8'};
-  const krResults = await Promise.all(krSyms.map(s => fetchYF(s)));
+  // 2. 국내 종목 테이블
   const dt = document.getElementById('domestic-table');
-  let krRows = '<tr><th>종목코드</th><th>종목명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>거래량</th><th>시가총액</th><th>PER</th><th>추세</th></tr>';
-  krResults.forEach((r, i) => {
-    const q = parseYF(r); if (!q) return;
-    const sym = krSyms[i], code = sym.replace('.KS',''), up = isUp(q.pct);
-    krRows += `<tr>
+  let krRows = '<tr><th>종목코드</th><th>종목명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>거래량</th><th>52주 고/저</th><th>PER</th><th>추세</th></tr>';
+  KR_SYMS.forEach(sym => {
+    const q = quotes[sym]; if (!q) return;
+    const code = sym.replace('.KS',''), up = q.regularMarketChangePercent >= 0;
+    const hi52 = q.fiftyTwoWeekHigh ? fmtKrw(q.fiftyTwoWeekHigh) : '—';
+    const lo52 = q.fiftyTwoWeekLow  ? fmtKrw(q.fiftyTwoWeekLow)  : '—';
+    const per  = q.trailingPE ? q.trailingPE.toFixed(1) : '—';
+    krRows += `<tr onclick="openStockModal('${sym}','${KR_NAMES[sym]||code}',true)">
       <td class="ticker">${code}</td>
-      <td style="color:var(--text)">${krNames[sym]||code}</td>
-      <td class="num">${fmtKrw(q.price)}</td>
-      <td class="${up?'up-text':'down-text'}">${up?'▲':'▼'} ${fmtKrw(Math.abs(q.change))}</td>
-      <td class="${up?'up-text':'down-text'}">${fmtPct(q.pct)}</td>
-      <td class="num" style="color:var(--text2)">${parseInt(q.volume).toLocaleString('ko-KR')}</td>
-      <td class="num" style="color:var(--text2)">—</td>
-      <td class="num" style="color:var(--text2)">${krPer[sym]||'—'}</td>
+      <td style="color:var(--text)">${KR_NAMES[sym]||code}</td>
+      <td class="num">${fmtKrw(q.regularMarketPrice)}</td>
+      <td class="${up?'up-text':'down-text'}">${up?'▲':'▼'} ${fmtKrw(Math.abs(q.regularMarketChange))}</td>
+      <td class="${up?'up-text':'down-text'}">${fmtPct(q.regularMarketChangePercent)}</td>
+      <td class="num" style="color:var(--text2)">${parseInt(q.regularMarketVolume||0).toLocaleString('ko-KR')}</td>
+      <td class="num" style="color:var(--text2);font-size:11px">${hi52} / ${lo52}</td>
+      <td class="num" style="color:var(--text2)">${per}</td>
       <td>${generateSparkSVG(up)}</td>
     </tr>`;
   });
   dt.innerHTML = krRows;
 
-  // TOP5 국내 업데이트 (첫 5개 사용)
+  // TOP5 국내
   const krTop5 = document.getElementById('kr-top5-table');
   if (krTop5) {
-    let top5Rows = '<tr><th>종목</th><th>종목명</th><th>현재가</th><th>등락률</th></tr>';
-    krResults.slice(0, 5).forEach((r, i) => {
-      const q = parseYF(r); if (!q) return;
-      const sym = krSyms[i], code = sym.replace('.KS',''), up = isUp(q.pct);
-      top5Rows += `<tr>
+    let rows = '<tr><th>종목</th><th>종목명</th><th>현재가</th><th>등락률</th></tr>';
+    KR_SYMS.slice(0, 5).forEach(sym => {
+      const q = quotes[sym]; if (!q) return;
+      const code = sym.replace('.KS',''), up = q.regularMarketChangePercent >= 0;
+      rows += `<tr onclick="openStockModal('${sym}','${KR_NAMES[sym]||code}',true)">
         <td class="ticker">${code}</td>
-        <td style="color:var(--text)">${krNames[sym]||code}</td>
-        <td class="num">${fmtKrw(q.price)}</td>
-        <td class="${up?'up-text':'down-text'}">${fmtPct(q.pct)}</td>
+        <td style="color:var(--text)">${KR_NAMES[sym]||code}</td>
+        <td class="num">${fmtKrw(q.regularMarketPrice)}</td>
+        <td class="${up?'up-text':'down-text'}">${fmtPct(q.regularMarketChangePercent)}</td>
       </tr>`;
     });
-    krTop5.innerHTML = top5Rows;
+    krTop5.innerHTML = rows;
   }
 
-  // 3. 해외 주요 종목 — 병렬 fetch
-  const usSyms    = ['NVDA','AAPL','MSFT','GOOGL','TSLA','META','AMZN'];
-  const usNames   = {NVDA:'NVIDIA',AAPL:'Apple',MSFT:'Microsoft',GOOGL:'Alphabet',TSLA:'Tesla',META:'Meta',AMZN:'Amazon'};
-  const usTargets = {NVDA:'$1,100',AAPL:'$220',MSFT:'$480',GOOGL:'$200',TSLA:'$220',META:'$560',AMZN:'$220'};
-  const usResults = await Promise.all(usSyms.map(s => fetchYF(s)));
+  // 3. 해외 종목 테이블
   const gt = document.getElementById('global-table');
-  let usRows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총(B)</th><th>PER</th><th>목표가</th><th>추세</th></tr>';
-  usResults.forEach((r, i) => {
-    const q = parseYF(r); if (!q) return;
-    const sym = usSyms[i], up = isUp(q.pct);
-    usRows += `<tr>
+  let usRows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총</th><th>PER</th><th>52주 범위</th><th>추세</th></tr>';
+  US_SYMS.forEach(sym => {
+    const q = quotes[sym]; if (!q) return;
+    const up = q.regularMarketChangePercent >= 0;
+    const hi52 = q.fiftyTwoWeekHigh ? fmtUsd(q.fiftyTwoWeekHigh) : '—';
+    const lo52 = q.fiftyTwoWeekLow  ? fmtUsd(q.fiftyTwoWeekLow)  : '—';
+    const per  = q.trailingPE ? q.trailingPE.toFixed(1) : '—';
+    usRows += `<tr onclick="openStockModal('${sym}','${US_NAMES[sym]||sym}',false)">
       <td class="ticker">${sym}</td>
-      <td style="color:var(--text)">${usNames[sym]||sym}</td>
-      <td class="num">${fmtUsd(q.price)}</td>
-      <td class="${up?'up-text':'down-text'}">${up?'▲':'▼'} $${Math.abs(q.change).toFixed(2)}</td>
-      <td class="${up?'up-text':'down-text'}">${fmtPct(q.pct)}</td>
-      <td class="num" style="color:var(--text2)">—</td>
-      <td class="num" style="color:var(--text2)">—</td>
-      <td class="num" style="color:var(--green)">${usTargets[sym]||'—'}</td>
+      <td style="color:var(--text)">${US_NAMES[sym]||sym}</td>
+      <td class="num">${fmtUsd(q.regularMarketPrice)}</td>
+      <td class="${up?'up-text':'down-text'}">${up?'▲':'▼'} $${Math.abs(q.regularMarketChange).toFixed(2)}</td>
+      <td class="${up?'up-text':'down-text'}">${fmtPct(q.regularMarketChangePercent)}</td>
+      <td class="num" style="color:var(--text2)">${fmtMktCap(q.marketCap)}</td>
+      <td class="num" style="color:var(--text2)">${per}</td>
+      <td class="num" style="color:var(--text2);font-size:11px">${lo52} ~ ${hi52}</td>
       <td>${generateSparkSVG(up)}</td>
     </tr>`;
   });
   gt.innerHTML = usRows;
 
-  // TOP5 해외 업데이트 (첫 5개 사용)
+  // TOP5 해외
   const usTop5 = document.getElementById('us-top5-table');
-  const usSectors = {NVDA:'반도체',AAPL:'소비자',MSFT:'클라우드',GOOGL:'광고/AI',TSLA:'전기차'};
   if (usTop5) {
-    let usTop5Rows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>등락률</th></tr>';
-    usResults.slice(0, 5).forEach((r, i) => {
-      const q = parseYF(r); if (!q) return;
-      const sym = usSyms[i], up = isUp(q.pct);
-      usTop5Rows += `<tr>
+    let rows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>등락률</th></tr>';
+    US_SYMS.slice(0, 5).forEach(sym => {
+      const q = quotes[sym]; if (!q) return;
+      const up = q.regularMarketChangePercent >= 0;
+      rows += `<tr onclick="openStockModal('${sym}','${US_NAMES[sym]||sym}',false)">
         <td class="ticker">${sym}</td>
-        <td style="color:var(--text)">${usNames[sym]||sym}</td>
-        <td class="num">${fmtUsd(q.price)}</td>
-        <td class="${up?'up-text':'down-text'}">${fmtPct(q.pct)}</td>
+        <td style="color:var(--text)">${US_NAMES[sym]||sym}</td>
+        <td class="num">${fmtUsd(q.regularMarketPrice)}</td>
+        <td class="${up?'up-text':'down-text'}">${fmtPct(q.regularMarketChangePercent)}</td>
       </tr>`;
     });
-    usTop5.innerHTML = usTop5Rows;
+    usTop5.innerHTML = rows;
+  }
+}
+
+// ── 기술적 지표 계산 ──
+function calcMA(data, n) {
+  return data.map((_, i) => i < n - 1 ? null : data.slice(i - n + 1, i + 1).reduce((a, b) => a + b, 0) / n);
+}
+
+function calcRSI(data, period = 14) {
+  const rsi = Array(data.length).fill(null);
+  if (data.length <= period) return rsi;
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = data[i] - data[i-1];
+    avgGain += Math.max(d, 0); avgLoss += Math.max(-d, 0);
+  }
+  avgGain /= period; avgLoss /= period;
+  rsi[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  for (let i = period + 1; i < data.length; i++) {
+    const d = data[i] - data[i-1];
+    avgGain = (avgGain * (period-1) + Math.max(d, 0))  / period;
+    avgLoss = (avgLoss * (period-1) + Math.max(-d, 0)) / period;
+    rsi[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  }
+  return rsi;
+}
+
+// ── 종목 상세 모달 ──
+let _modalSym = '', _modalIsKr = false;
+
+async function openStockModal(symbol, name, isKr) {
+  _modalSym = symbol; _modalIsKr = isKr;
+  const overlay = document.getElementById('stock-modal');
+  overlay.classList.add('open');
+  document.getElementById('modal-ticker').textContent = symbol || '—';
+  document.getElementById('modal-name').textContent   = name   || '종목을 검색하거나 표에서 클릭하세요';
+  document.getElementById('modal-price').textContent  = symbol ? '로딩 중...' : '—';
+  document.getElementById('modal-change').textContent = '';
+  document.getElementById('modal-charts').style.display = 'none';
+  document.getElementById('modal-stats').style.display  = 'none';
+  document.getElementById('modal-loading').style.display = symbol ? 'block' : 'none';
+  document.getElementById('modal-search-input').value = symbol || '';
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('range-1mo').classList.add('active');
+  if (symbol) await renderStockCharts(symbol, '1mo', isKr);
+}
+
+function closeStockModal() {
+  document.getElementById('stock-modal').classList.remove('open');
+  ['modal-price-chart','modal-vol-chart','modal-rsi-chart'].forEach(id => {
+    const ch = Chart.getChart(document.getElementById(id)); if (ch) ch.destroy();
+  });
+}
+
+async function searchStock(raw) {
+  let sym = raw.trim().toUpperCase();
+  if (!sym) return;
+  const isKr = sym.endsWith('.KS') || sym.endsWith('.KQ') || /^\d{6}$/.test(sym) || sym === '^KS11' || sym === '^KQ11';
+  if (/^\d{6}$/.test(sym)) sym += '.KS';
+  _modalSym = sym; _modalIsKr = isKr;
+  document.getElementById('modal-ticker').textContent = sym;
+  document.getElementById('modal-name').textContent   = sym;
+  document.getElementById('modal-price').textContent  = '로딩 중...';
+  document.getElementById('modal-change').textContent = '';
+  document.getElementById('modal-charts').style.display = 'none';
+  document.getElementById('modal-stats').style.display  = 'none';
+  document.getElementById('modal-loading').style.display = 'block';
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('range-1mo').classList.add('active');
+  await renderStockCharts(sym, '1mo', isKr);
+}
+
+async function setChartRange(range) {
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  const map = {'1mo':'range-1mo','3mo':'range-3mo','6mo':'range-6mo','1y':'range-1y'};
+  const btn = document.getElementById(map[range]); if (btn) btn.classList.add('active');
+  if (_modalSym) await renderStockCharts(_modalSym, range, _modalIsKr);
+}
+
+async function renderStockCharts(symbol, range, isKr) {
+  document.getElementById('modal-loading').style.display = 'block';
+  document.getElementById('modal-charts').style.display  = 'none';
+
+  const [qmap, chartData] = await Promise.all([fetchYFQuote(symbol), fetchYFChart(symbol, range)]);
+  const q = qmap[symbol] || qmap[symbol.toUpperCase()];
+
+  document.getElementById('modal-loading').style.display = 'none';
+
+  if (q) {
+    const up = q.regularMarketChangePercent >= 0;
+    document.getElementById('modal-ticker').textContent = q.symbol;
+    document.getElementById('modal-name').textContent   = q.longName || q.shortName || symbol;
+    document.getElementById('modal-price').textContent  = isKr ? fmtKrw(q.regularMarketPrice) : fmtUsd(q.regularMarketPrice);
+    document.getElementById('modal-change').textContent =
+      (up?'▲':'▼') + ' ' + (isKr ? fmtKrw(Math.abs(q.regularMarketChange)) : '$'+Math.abs(q.regularMarketChange).toFixed(2)) +
+      ' (' + fmtPct(q.regularMarketChangePercent) + ')';
+    document.getElementById('modal-change').style.color = up ? 'var(--green)' : 'var(--red)';
+    document.getElementById('modal-52h').textContent    = q.fiftyTwoWeekHigh ? (isKr ? fmtKrw(q.fiftyTwoWeekHigh) : fmtUsd(q.fiftyTwoWeekHigh)) : '—';
+    document.getElementById('modal-52l').textContent    = q.fiftyTwoWeekLow  ? (isKr ? fmtKrw(q.fiftyTwoWeekLow)  : fmtUsd(q.fiftyTwoWeekLow))  : '—';
+    document.getElementById('modal-mktcap').textContent = fmtMktCap(q.marketCap);
+    document.getElementById('modal-per').textContent    = q.trailingPE ? q.trailingPE.toFixed(1) : '—';
+    document.getElementById('modal-stats').style.display = 'grid';
+  }
+
+  if (chartData) {
+    const raw    = chartData.indicators?.quote?.[0] || {};
+    const ts     = chartData.timestamp || [];
+    const labels = [], closes = [], volumes = [];
+    (raw.close || []).forEach((c, i) => {
+      if (c == null) return;
+      closes.push(c); volumes.push(raw.volume?.[i] || 0);
+      const d = new Date(ts[i] * 1000);
+      labels.push(`${d.getMonth()+1}/${d.getDate()}`);
+    });
+
+    const ma20 = calcMA(closes, 20);
+    const ma60 = calcMA(closes, 60);
+    const rsi  = calcRSI(closes, 14);
+
+    ['modal-price-chart','modal-vol-chart','modal-rsi-chart'].forEach(id => {
+      const ch = Chart.getChart(document.getElementById(id)); if (ch) ch.destroy();
+    });
+
+    const lineColor = (closes.length && closes[closes.length-1] >= closes[0]) ? '#2ECC8A' : '#E05252';
+    const lineFill  = (closes.length && closes[closes.length-1] >= closes[0]) ? 'rgba(46,204,138,0.06)' : 'rgba(224,82,82,0.06)';
+
+    new Chart(document.getElementById('modal-price-chart').getContext('2d'), {
+      type:'line',
+      data:{ labels, datasets:[
+        {label:'가격', data:closes, borderColor:lineColor, borderWidth:1.5, pointRadius:0, tension:0.3, fill:true, backgroundColor:lineFill},
+        {label:'MA20', data:ma20, borderColor:'rgba(201,168,76,0.9)', borderWidth:1, pointRadius:0, tension:0.3, fill:false, spanGaps:true},
+        {label:'MA60', data:ma60, borderColor:'rgba(91,143,232,0.9)', borderWidth:1, pointRadius:0, tension:0.3, fill:false, spanGaps:true},
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index', intersect:false},
+        plugins:{
+          legend:{display:true, labels:{color:'#9AA0B0', font:{size:10}, boxWidth:10, usePointStyle:true}},
+          tooltip:{backgroundColor:'#1E2330', titleColor:'#9AA0B0', bodyColor:'#F0EDE6', borderColor:'rgba(255,255,255,0.12)', borderWidth:1}
+        },
+        scales:{
+          x:{ticks:{color:'#5A6070', font:{size:9}, maxTicksLimit:8}, grid:{color:'rgba(255,255,255,0.03)'}},
+          y:{ticks:{color:'#5A6070', font:{size:9}}, grid:{color:'rgba(255,255,255,0.05)'}, position:'right'}
+        }
+      }
+    });
+
+    const volColors = closes.map((c,i) => (i===0||c>=closes[i-1]) ? 'rgba(46,204,138,0.45)' : 'rgba(224,82,82,0.45)');
+    new Chart(document.getElementById('modal-vol-chart').getContext('2d'), {
+      type:'bar',
+      data:{labels, datasets:[{data:volumes, backgroundColor:volColors, borderWidth:0}]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{enabled:false}},
+        scales:{x:{display:false}, y:{ticks:{color:'#5A6070',font:{size:8},maxTicksLimit:3}, grid:{color:'rgba(255,255,255,0.03)'}, position:'right'}}
+      }
+    });
+
+    const rsiLen = labels.length;
+    new Chart(document.getElementById('modal-rsi-chart').getContext('2d'), {
+      type:'line',
+      data:{labels, datasets:[
+        {data:rsi, borderColor:'#7B68EE', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, spanGaps:true},
+        {data:Array(rsiLen).fill(70), borderColor:'rgba(224,82,82,0.35)', borderWidth:1, pointRadius:0, borderDash:[4,3], fill:false},
+        {data:Array(rsiLen).fill(30), borderColor:'rgba(46,204,138,0.35)', borderWidth:1, pointRadius:0, borderDash:[4,3], fill:false},
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{enabled:false}},
+        scales:{
+          x:{display:false},
+          y:{min:0, max:100, ticks:{color:'#5A6070',font:{size:8},stepSize:50}, grid:{color:'rgba(255,255,255,0.03)'}, position:'right'}
+        }
+      }
+    });
+
+    document.getElementById('modal-charts').style.display = 'block';
   }
 }
 
@@ -1478,60 +1760,6 @@ portData.forEach(d => {
   legend.innerHTML += `<div class="port-leg-item"><div class="port-leg-dot" style="background:${d.color}"></div><div class="port-leg-name">${d.label}</div><div class="port-leg-pct">${d.pct}%</div></div>`;
 });
 
-// Domestic table
-const domesticStocks = [
-  ['005930','삼성전자','78,400','▲1,100','▲1.42%','14,820,000','468T','15.2'],
-  ['000660','SK하이닉스','182,500','▲3,800','▲2.14%','6,241,000','133T','28.4'],
-  ['035420','NAVER','196,000','▼1,000','▼0.51%','2,418,000','64T','32.1'],
-  ['051910','LG화학','388,500','▼4,000','▼1.02%','412,000','54T','18.7'],
-  ['006400','삼성SDI','278,000','▲2,000','▲0.72%','831,000','65T','22.3'],
-  ['035720','카카오','46,850','▲350','▲0.75%','8,920,000','21T','41.2'],
-  ['028260','삼성물산','148,500','▼500','▼0.34%','648,000','28T','12.4'],
-  ['003550','LG','88,400','▲800','▲0.91%','924,000','15T','9.8'],
-];
-const dt = document.getElementById('domestic-table');
-domesticStocks.forEach(r => {
-  const isUp = r[4].includes('▲');
-  const spark = generateSparkSVG(isUp);
-  dt.innerHTML += `<tr>
-    <td class="ticker">${r[0]}</td>
-    <td style="color:var(--text)">${r[1]}</td>
-    <td class="num">${r[2]}</td>
-    <td class="${isUp?'up-text':'down-text'}">${r[3]}</td>
-    <td class="${isUp?'up-text':'down-text'}">${r[4]}</td>
-    <td class="num" style="color:var(--text2)">${r[5]}</td>
-    <td class="num" style="color:var(--text2)">${r[6]}</td>
-    <td class="num" style="color:var(--text2)">${r[7]}</td>
-    <td>${spark}</td>
-  </tr>`;
-});
-
-// Global table
-const globalStocks = [
-  ['NVDA','NVIDIA','$875.40','▲26.50','▲3.12%','$2.16T','68.2','$1,100'],
-  ['AAPL','Apple','$182.74','▼0.52','▼0.28%','$2.81T','28.4','$220'],
-  ['MSFT','Microsoft','$414.50','▲3.87','▲0.94%','$3.08T','36.8','$480'],
-  ['GOOGL','Alphabet','$166.32','▲1.94','▲1.18%','$2.04T','24.1','$200'],
-  ['TSLA','Tesla','$182.19','▼4.51','▼2.41%','$580B','54.2','$220'],
-  ['META','Meta','$484.10','▲5.12','▲1.07%','$1.24T','24.8','$560'],
-  ['AMZN','Amazon','$184.90','▲2.14','▲1.17%','$1.92T','41.2','$220'],
-];
-const gt = document.getElementById('global-table');
-globalStocks.forEach(r => {
-  const isUp = r[4].includes('▲');
-  const spark = generateSparkSVG(isUp);
-  gt.innerHTML += `<tr>
-    <td class="ticker">${r[0]}</td>
-    <td style="color:var(--text)">${r[1]}</td>
-    <td class="num">${r[2]}</td>
-    <td class="${isUp?'up-text':'down-text'}">${r[3]}</td>
-    <td class="${isUp?'up-text':'down-text'}">${r[4]}</td>
-    <td class="num" style="color:var(--text2)">${r[5]}</td>
-    <td class="num" style="color:var(--text2)">${r[6]}</td>
-    <td class="num" style="color:var(--green)">${r[7]}</td>
-    <td>${spark}</td>
-  </tr>`;
-});
 
 // Sparkline generator
 function generateSparkSVG(up) {
