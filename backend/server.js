@@ -57,20 +57,27 @@ app.get('/api/index/kr', async (req, res) => {
   }
 });
 
-// ── 국내 주식 현재가 배치 조회 ──
-// POST /api/quotes/kr  body: { codes: ["005930","000660",...] }
+// ── 국내 주식 현재가 배치 조회 (순차 처리 — KIS 초당 제한 대응) ──
 app.post('/api/quotes/kr', async (req, res) => {
   const codes = req.body.codes || [];
   if (!codes.length) return res.json([]);
   try {
     const token = await getToken();
-    const results = await Promise.all(codes.map(code =>
-      axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-price`, {
-        headers: h(token, 'FHKST01010100'),
-        params:  { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: code }
-      }).then(r => ({ code, q: r.data.output }))
-        .catch(e => { console.error(`[quote/${code}]`, e.message); return { code, q: null }; })
-    ));
+    const results = [];
+    for (const code of codes) {
+      try {
+        const r = await axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-price`, {
+          headers: h(token, 'FHKST01010100'),
+          params:  { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: code }
+        });
+        results.push({ code, q: r.data.output });
+      } catch(e) {
+        const body = e.response?.data;
+        console.error(`[quote/${code}]`, e.response?.status, JSON.stringify(body));
+        results.push({ code, q: null });
+      }
+      await new Promise(r => setTimeout(r, 80)); // 초당 ~12건 이내
+    }
     res.json(results);
   } catch (e) {
     console.error('[/api/quotes/kr]', e.message);
@@ -79,19 +86,18 @@ app.post('/api/quotes/kr', async (req, res) => {
 });
 
 // ── 국내 주식 일봉 차트 ──
-// GET /api/chart/kr/:code?range=6mo
 app.get('/api/chart/kr/:code', async (req, res) => {
   try {
-    const token = await getToken();
-    const days  = ({ '1mo':30, '3mo':90, '6mo':180, '1y':365 })[req.query.range || '6mo'] || 180;
+    const token  = await getToken();
+    const days   = ({ '1mo':30, '3mo':90, '6mo':180, '1y':365 })[req.query.range || '1mo'] || 30;
     const toDate = new Date().toISOString().slice(0,10).replace(/-/g,'');
     const frDate = new Date(Date.now() - days * 86400000).toISOString().slice(0,10).replace(/-/g,'');
 
     const { data } = await axios.get(
-      `${KIS}/uapi/domestic-stock/v1/quotations/inquire-daily-chartprice`,
+      `${KIS}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice`,
       {
         headers: h(token, 'FHKST03010100'),
-        params:  {
+        params: {
           FID_COND_MRKT_DIV_CODE: 'J',
           FID_INPUT_ISCD:          req.params.code,
           FID_INPUT_DATE_1:        frDate,
@@ -101,12 +107,12 @@ app.get('/api/chart/kr/:code', async (req, res) => {
         }
       }
     );
-    // output2: 일봉 배열 (최신순), 오름차순으로 뒤집어서 반환
     const rows = (data.output2 || []).reverse();
     res.json(rows);
   } catch (e) {
-    console.error('[/api/chart/kr]', e.message);
-    res.status(500).json({ error: e.message });
+    const body = e.response?.data;
+    console.error('[/api/chart/kr]', e.response?.status, JSON.stringify(body));
+    res.status(500).json({ error: e.message, detail: body });
   }
 });
 
@@ -127,20 +133,27 @@ app.get('/api/quote/kr/:code', async (req, res) => {
   }
 });
 
-// ── 해외 주식 현재가 배치 ──
-// POST /api/quotes/us  body: { stocks: [{sym:"AAPL", excd:"NAS"}, ...] }
+// ── 해외 주식 현재가 배치 (순차 처리) ──
 app.post('/api/quotes/us', async (req, res) => {
   const stocks = req.body.stocks || [];
   if (!stocks.length) return res.json([]);
   try {
     const token = await getToken();
-    const results = await Promise.all(stocks.map(({ sym, excd }) =>
-      axios.get(`${KIS}/uapi/overseas-price/v1/quotations/price`, {
-        headers: h(token, 'HHDFS00000300'),
-        params:  { AUTH: '', EXCD: excd, SYMB: sym }
-      }).then(r => ({ sym, excd, q: r.data.output }))
-        .catch(e => { console.error(`[us-quote/${sym}]`, e.message); return { sym, excd, q: null }; })
-    ));
+    const results = [];
+    for (const { sym, excd } of stocks) {
+      try {
+        const r = await axios.get(`${KIS}/uapi/overseas-price/v1/quotations/price`, {
+          headers: h(token, 'HHDFS00000300'),
+          params:  { AUTH: '', EXCD: excd, SYMB: sym }
+        });
+        results.push({ sym, excd, q: r.data.output });
+      } catch(e) {
+        const body = e.response?.data;
+        console.error(`[us-quote/${sym}]`, e.response?.status, JSON.stringify(body));
+        results.push({ sym, excd, q: null });
+      }
+      await new Promise(r => setTimeout(r, 80));
+    }
     res.json(results);
   } catch (e) {
     console.error('[/api/quotes/us]', e.message);
