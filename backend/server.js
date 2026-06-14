@@ -36,20 +36,36 @@ function h(token, trId) {
   };
 }
 
+// ── 전역 KIS 요청 큐 (초당 제한 대응: 요청 간 200ms 간격) ──
+let _kisQueue = Promise.resolve();
+function kisReq(fn) {
+  _kisQueue = _kisQueue.then(async () => {
+    const result = await fn();
+    await new Promise(r => setTimeout(r, 200));
+    return result;
+  });
+  return _kisQueue;
+}
+
 // Health check (Render가 이 엔드포인트로 서버 상태 확인)
 app.get('/health', (_, res) => res.json({ ok: true, ts: Date.now() }));
 
 // ── KOSPI / KOSDAQ 지수 ──
 app.get('/api/index/kr', async (req, res) => {
   try {
-    const token = await getToken();
-    const fetchIdx = (iscd) =>
+    const token  = await getToken();
+    const kospi  = await kisReq(() =>
       axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-index-price`, {
         headers: h(token, 'FHPUP02100000'),
-        params:  { FID_COND_MRKT_DIV_CODE: 'U', FID_INPUT_ISCD: iscd }
-      }).then(r => r.data.output).catch(() => null);
-
-    const [kospi, kosdaq] = await Promise.all([fetchIdx('0001'), fetchIdx('1001')]);
+        params:  { FID_COND_MRKT_DIV_CODE: 'U', FID_INPUT_ISCD: '0001' }
+      }).then(r => r.data.output).catch(() => null)
+    );
+    const kosdaq = await kisReq(() =>
+      axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-index-price`, {
+        headers: h(token, 'FHPUP02100000'),
+        params:  { FID_COND_MRKT_DIV_CODE: 'U', FID_INPUT_ISCD: '1001' }
+      }).then(r => r.data.output).catch(() => null)
+    );
     res.json({ kospi, kosdaq });
   } catch (e) {
     console.error('[/api/index/kr]', e.message);
@@ -57,7 +73,7 @@ app.get('/api/index/kr', async (req, res) => {
   }
 });
 
-// ── 국내 주식 현재가 배치 조회 (순차 처리 — KIS 초당 제한 대응) ──
+// ── 국내 주식 현재가 배치 조회 ──
 app.post('/api/quotes/kr', async (req, res) => {
   const codes = req.body.codes || [];
   if (!codes.length) return res.json([]);
@@ -65,18 +81,19 @@ app.post('/api/quotes/kr', async (req, res) => {
     const token = await getToken();
     const results = [];
     for (const code of codes) {
-      try {
-        const r = await axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-price`, {
-          headers: h(token, 'FHKST01010100'),
-          params:  { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: code }
-        });
-        results.push({ code, q: r.data.output });
-      } catch(e) {
-        const body = e.response?.data;
-        console.error(`[quote/${code}]`, e.response?.status, JSON.stringify(body));
-        results.push({ code, q: null });
-      }
-      await new Promise(r => setTimeout(r, 80)); // 초당 ~12건 이내
+      const result = await kisReq(async () => {
+        try {
+          const r = await axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-price`, {
+            headers: h(token, 'FHKST01010100'),
+            params:  { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: code }
+          });
+          return { code, q: r.data.output };
+        } catch(e) {
+          console.error(`[quote/${code}]`, e.response?.status, JSON.stringify(e.response?.data));
+          return { code, q: null };
+        }
+      });
+      results.push(result);
     }
     res.json(results);
   } catch (e) {
@@ -133,7 +150,7 @@ app.get('/api/quote/kr/:code', async (req, res) => {
   }
 });
 
-// ── 해외 주식 현재가 배치 (순차 처리) ──
+// ── 해외 주식 현재가 배치 ──
 app.post('/api/quotes/us', async (req, res) => {
   const stocks = req.body.stocks || [];
   if (!stocks.length) return res.json([]);
@@ -141,18 +158,19 @@ app.post('/api/quotes/us', async (req, res) => {
     const token = await getToken();
     const results = [];
     for (const { sym, excd } of stocks) {
-      try {
-        const r = await axios.get(`${KIS}/uapi/overseas-price/v1/quotations/price`, {
-          headers: h(token, 'HHDFS00000300'),
-          params:  { AUTH: '', EXCD: excd, SYMB: sym }
-        });
-        results.push({ sym, excd, q: r.data.output });
-      } catch(e) {
-        const body = e.response?.data;
-        console.error(`[us-quote/${sym}]`, e.response?.status, JSON.stringify(body));
-        results.push({ sym, excd, q: null });
-      }
-      await new Promise(r => setTimeout(r, 80));
+      const result = await kisReq(async () => {
+        try {
+          const r = await axios.get(`${KIS}/uapi/overseas-price/v1/quotations/price`, {
+            headers: h(token, 'HHDFS00000300'),
+            params:  { AUTH: '', EXCD: excd, SYMB: sym }
+          });
+          return { sym, excd, q: r.data.output };
+        } catch(e) {
+          console.error(`[us-quote/${sym}]`, e.response?.status, JSON.stringify(e.response?.data));
+          return { sym, excd, q: null };
+        }
+      });
+      results.push(result);
     }
     res.json(results);
   } catch (e) {
