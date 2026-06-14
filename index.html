@@ -1457,12 +1457,33 @@ function fmtMktCap(v) {
   return '$' + v.toLocaleString();
 }
 
+// CORS 프록시 (여러 개 순서대로 시도)
+const YF_PROXIES = [
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://thingproxy.freeboard.io/fetch/${url}`,
+];
+
+async function proxyFetch(url, timeout = 8000) {
+  for (const makeProxy of YF_PROXIES) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeout);
+      const r = await fetch(makeProxy(url), { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (r.ok) return r;
+    } catch(e) { /* 다음 프록시 시도 */ }
+  }
+  return null;
+}
+
 // v1/finance/quote — 정확한 실시간 현재가/등락률 (배치 가능)
 async function fetchYFQuote(symbols) {
   const symsStr = Array.isArray(symbols) ? symbols.join(',') : symbols;
   const url = `https://query1.finance.yahoo.com/v1/finance/quote?symbols=${encodeURIComponent(symsStr)}`;
   try {
-    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+    const r = await proxyFetch(url);
+    if (!r) return {};
     const d = await r.json();
     return (d.quoteResponse?.result || []).reduce((m, q) => { m[q.symbol] = q; return m; }, {});
   } catch(e) { return {}; }
@@ -1472,7 +1493,8 @@ async function fetchYFQuote(symbols) {
 async function fetchYFChart(symbol, range = '1mo') {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${range}`;
   try {
-    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+    const r = await proxyFetch(url);
+    if (!r) return null;
     const d = await r.json();
     return d.chart?.result?.[0] || null;
   } catch(e) { return null; }
