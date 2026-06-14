@@ -127,5 +127,47 @@ app.get('/api/quote/kr/:code', async (req, res) => {
   }
 });
 
+// ── 해외 주식 현재가 배치 ──
+// POST /api/quotes/us  body: { stocks: [{sym:"AAPL", excd:"NAS"}, ...] }
+app.post('/api/quotes/us', async (req, res) => {
+  const stocks = req.body.stocks || [];
+  if (!stocks.length) return res.json([]);
+  try {
+    const token = await getToken();
+    const results = await Promise.all(stocks.map(({ sym, excd }) =>
+      axios.get(`${KIS}/uapi/overseas-price/v1/quotations/price`, {
+        headers: h(token, 'HHDFS00000300'),
+        params:  { AUTH: '', EXCD: excd, SYMB: sym }
+      }).then(r => ({ sym, excd, q: r.data.output }))
+        .catch(e => { console.error(`[us-quote/${sym}]`, e.message); return { sym, excd, q: null }; })
+    ));
+    res.json(results);
+  } catch (e) {
+    console.error('[/api/quotes/us]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 해외 주식 일봉 차트 ──
+// GET /api/chart/us/:symbol?excd=NAS&range=1mo
+app.get('/api/chart/us/:symbol', async (req, res) => {
+  try {
+    const token = await getToken();
+    const excd  = req.query.excd || 'NAS';
+    const { data } = await axios.get(
+      `${KIS}/uapi/overseas-price/v1/quotations/dailyprice`,
+      {
+        headers: h(token, 'HHDFS76240000'),
+        params: { AUTH: '', EXCD: excd, SYMB: req.params.symbol, GUBN: '0', BYMD: '', MODP: '1' }
+      }
+    );
+    // output2: 최신순 → 오름차순 반환
+    res.json((data.output2 || []).reverse());
+  } catch (e) {
+    console.error('[/api/chart/us]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`EGY API server running on :${PORT}`));

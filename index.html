@@ -1418,6 +1418,49 @@ async function kisChart(code, range = '1mo') {
   } catch(e) { return null; }
 }
 
+// 해외 주식 거래소 코드
+const US_EXCD = {NVDA:'NAS',AAPL:'NAS',MSFT:'NAS',GOOGL:'NAS',TSLA:'NAS',META:'NAS',AMZN:'NAS'};
+
+async function kisUsQuotes(syms) {
+  if (!BACKEND_URL) return [];
+  try {
+    const stocks = syms.map(sym => ({ sym, excd: US_EXCD[sym] || 'NAS' }));
+    const r = await fetch(`${BACKEND_URL}/api/quotes/us`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stocks })
+    });
+    return await r.json();
+  } catch(e) { return []; }
+}
+
+async function kisUsChart(symbol, range = '1mo') {
+  if (!BACKEND_URL) return null;
+  try {
+    const excd = US_EXCD[symbol] || 'NAS';
+    const r = await fetch(`${BACKEND_URL}/api/chart/us/${symbol}?excd=${excd}&range=${range}`);
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+// KIS 해외 주식 데이터 → 공통 포맷
+function parseKISUs(q) {
+  if (!q) return null;
+  const price = parseFloat(q.last);
+  const diff  = parseFloat(q.diff);
+  const rate  = parseFloat(q.rate);
+  return {
+    regularMarketPrice:         price,
+    regularMarketChange:        diff,
+    regularMarketChangePercent: rate,
+    regularMarketVolume:        parseInt(q.tvol || 0),
+    fiftyTwoWeekHigh:           parseFloat(q.h52p || 0),
+    fiftyTwoWeekLow:            parseFloat(q.l52p || 0),
+    trailingPE:                 parseFloat(q.per) || null,
+    marketCap:                  null
+  };
+}
+
 // KIS 데이터 → 공통 포맷 변환
 function parseKIS(q) {
   if (!q) return null;
@@ -1513,13 +1556,14 @@ async function fetchMarketData() {
   const krCodes = KR_SYMS.map(s => s.replace('.KS',''));
   const [
     yfQuotes, kospiC, kosdaqC, spxC, ixicC,
-    kisIdxData, kisQData
+    kisIdxData, kisQData, kisUsData
   ] = await Promise.all([
-    fetchYFQuote(['^KS11','^KQ11','^GSPC','^IXIC', ...US_SYMS]),
+    fetchYFQuote(['^KS11','^KQ11','^GSPC','^IXIC']),  // 지수만 YF로
     fetchYFChart('^KS11','1mo'), fetchYFChart('^KQ11','1mo'),
     fetchYFChart('^GSPC','1mo'), fetchYFChart('^IXIC','1mo'),
-    useKIS ? kisIndex()        : Promise.resolve(null),
-    useKIS ? kisQuotes(krCodes): Promise.resolve([]),
+    useKIS ? kisIndex()          : Promise.resolve(null),
+    useKIS ? kisQuotes(krCodes)  : Promise.resolve([]),
+    useKIS ? kisUsQuotes(US_SYMS): Promise.resolve([]),
   ]);
 
   // KIS 결과 → 맵
@@ -1640,15 +1684,33 @@ async function fetchMarketData() {
     krTop5.innerHTML = rows;
   }
 
-  // ── 3. 해외 종목 테이블 (Yahoo Finance) ──
+  // ── 3. 해외 종목 테이블 (KIS 우선 / YF 폴백) ──
+  const kisUsMap = {};
+  (kisUsData || []).forEach(({ sym, q }) => { if (q) kisUsMap[sym] = parseKISUs(q); });
+
+  function getUsQuote(sym) {
+    if (useKIS && kisUsMap[sym]) return kisUsMap[sym];
+    const yq = yfQuotes[sym]; if (!yq) return null;
+    return {
+      regularMarketPrice:         yq.regularMarketPrice,
+      regularMarketChange:        yq.regularMarketChange,
+      regularMarketChangePercent: yq.regularMarketChangePercent,
+      regularMarketVolume:        yq.regularMarketVolume || 0,
+      fiftyTwoWeekHigh:           yq.fiftyTwoWeekHigh || 0,
+      fiftyTwoWeekLow:            yq.fiftyTwoWeekLow  || 0,
+      trailingPE:                 yq.trailingPE || null,
+      marketCap:                  yq.marketCap  || null
+    };
+  }
+
   const gt = document.getElementById('global-table');
   let usRows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>전일비</th><th>등락률</th><th>시총</th><th>PER</th><th>52주 범위</th><th>추세</th></tr>';
   US_SYMS.forEach(sym => {
-    const q = yfQuotes[sym]; if (!q) return;
+    const q = getUsQuote(sym); if (!q) return;
     const up = q.regularMarketChangePercent >= 0;
     const hi52 = q.fiftyTwoWeekHigh ? fmtUsd(q.fiftyTwoWeekHigh) : '—';
     const lo52 = q.fiftyTwoWeekLow  ? fmtUsd(q.fiftyTwoWeekLow)  : '—';
-    const per  = q.trailingPE ? q.trailingPE.toFixed(1) : '—';
+    const per  = q.trailingPE ? parseFloat(q.trailingPE).toFixed(1) : '—';
     usRows += `<tr onclick="openStockModal('${sym}','${US_NAMES[sym]||sym}',false)">
       <td class="ticker">${sym}</td>
       <td style="color:var(--text)">${US_NAMES[sym]||sym}</td>
@@ -1668,7 +1730,7 @@ async function fetchMarketData() {
   if (usTop5) {
     let rows = '<tr><th>티커</th><th>회사명</th><th>현재가</th><th>등락률</th></tr>';
     US_SYMS.slice(0, 5).forEach(sym => {
-      const q = yfQuotes[sym]; if (!q) return;
+      const q = getUsQuote(sym); if (!q) return;
       const up = q.regularMarketChangePercent >= 0;
       rows += `<tr onclick="openStockModal('${sym}','${US_NAMES[sym]||sym}',false)">
         <td class="ticker">${sym}</td>
@@ -1763,10 +1825,10 @@ async function renderStockCharts(symbol, range, isKr) {
 
   // 한국 주식: KIS 백엔드 우선, 폴백 Yahoo Finance
   const yfSym = isKr ? (symbol.includes('.') ? symbol : symbol + '.KS') : symbol;
-  const [qmap, chartRaw, kisChartRows] = await Promise.all([
+  const [qmap, kisChartRows, kisUsChartRows] = await Promise.all([
     fetchYFQuote(yfSym),
-    isKr ? null : fetchYFChart(symbol, range),
     (isKr && BACKEND_URL) ? kisChart(symbol.replace('.KS','').replace('.KQ',''), range) : Promise.resolve(null),
+    (!isKr && BACKEND_URL) ? kisUsChart(symbol, range) : Promise.resolve(null),
   ]);
   const q = qmap[yfSym] || qmap[symbol];
 
@@ -1788,22 +1850,26 @@ async function renderStockCharts(symbol, range, isKr) {
     document.getElementById('modal-stats').style.display = 'grid';
   }
 
-  // 차트 데이터 통합 (KIS or Yahoo Finance)
+  // 차트 데이터 통합 (KIS 우선 / YF 폴백)
   let chartData = null;
-  if (isKr && kisChartRows?.length) {
-    // KIS 일봉 배열: { stck_bsop_date, stck_clpr, acml_vol, ... }
+  const kisRows = kisChartRows?.length ? kisChartRows : (kisUsChartRows?.length ? kisUsChartRows : null);
+
+  if (kisRows?.length) {
     const labels = [], closes = [], volumes = [];
-    kisChartRows.forEach(row => {
-      const dt = row.stck_bsop_date; // "20240101"
+    kisRows.forEach(row => {
+      // 국내: stck_bsop_date/stck_clpr/acml_vol, 해외: xymd/clos/tvol
+      const dt  = row.stck_bsop_date || row.xymd || '';
+      const cls = parseInt(row.stck_clpr || row.clos || 0);
+      const vol = parseInt(row.acml_vol  || row.tvol || 0);
+      if (!cls) return;
       labels.push(`${parseInt(dt.slice(4,6))}/${parseInt(dt.slice(6,8))}`);
-      closes.push(parseInt(row.stck_clpr));
-      volumes.push(parseInt(row.acml_vol || 0));
+      closes.push(cls); volumes.push(vol);
     });
-    chartData = { labels, closes, volumes };
-  } else if (!isKr && chartRaw) {
-    chartData = chartRaw; // Yahoo Finance 원본
-  } else if (isKr && !kisChartRows?.length) {
-    // KIS 없으면 Yahoo Finance 폴백
+    if (closes.length) chartData = { labels, closes, volumes };
+  }
+
+  if (!chartData) {
+    // YF 폴백
     const yfc = await fetchYFChart(yfSym, range);
     chartData = yfc;
   }
