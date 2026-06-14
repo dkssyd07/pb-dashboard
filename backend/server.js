@@ -80,10 +80,11 @@ function buildSnapshot() {
   const krKey = 'kr_' + KR_WARM.join(',');
   const usKey = 'us_' + US_WARM.map(s => s.sym).join(',');
   return {
-    ts:       Date.now(),
-    index:    cGet('index_kr', TTL_QUOTE * 2),
-    krQuotes: cGet(krKey, TTL_QUOTE * 2) || [],
-    usQuotes: cGet(usKey, TTL_QUOTE * 2) || [],
+    ts:             Date.now(),
+    index:          cGet('index_kr',       TTL_QUOTE * 2),
+    krQuotes:       cGet(krKey,            TTL_QUOTE * 2) || [],
+    usQuotes:       cGet(usKey,            TTL_QUOTE * 2) || [],
+    marketInvestor: cGet('market_investor', TTL_INV  * 2) || [],
   };
 }
 
@@ -280,6 +281,31 @@ app.get('/api/chart/us/:symbol', async (req, res) => {
   }
 });
 
+// ── 시장 전체 투자자 수급 (KOSPI) ──
+app.get('/api/market-investor', async (req, res) => {
+  const hit = cGet('market_investor', TTL_INV);
+  if (hit) return res.json(hit);
+  try {
+    const token = await getToken();
+    const result = await kisReq(() =>
+      axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-investor`, {
+        headers: h(token, 'FHKST01010900'),
+        params:  { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: '0001' }
+      }).then(r => {
+        console.log('[market-investor] rt_cd:', r.data.rt_cd, r.data.msg1);
+        return r.data.output || [];
+      }).catch(e => {
+        console.error('[market-investor]', e.response?.status, e.response?.data?.msg1);
+        return [];
+      })
+    );
+    res.json(cSet('market_investor', result));
+  } catch(e) {
+    console.error('[/api/market-investor]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── 투자자별 매매동향 ──
 app.get('/api/investor/kr/:code', async (req, res) => {
   const key = `inv_${req.params.code}`;
@@ -367,6 +393,16 @@ async function warmCache() {
 
     const krOk = krResults.filter(r => r.q).length;
     const usOk = usResults.filter(r => r.q).length;
+
+    // 시장 전체 투자자 수급 예열
+    await kisReq(() =>
+      axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-investor`, {
+        headers: h(token, 'FHKST01010900'),
+        params:  { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: '0001' }
+      }).then(r => { cSet('market_investor', r.data.output || []); return r.data.output; })
+        .catch(e => { console.error('[WARM] market-investor:', e.response?.data?.msg1); return []; })
+    );
+
     console.log(`[WARM] 완료 — KR ${krOk}/${KR_WARM.length}, US ${usOk}/${US_WARM.length}`);
 
     // 연결된 모든 클라이언트에 즉시 푸시

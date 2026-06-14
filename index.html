@@ -875,11 +875,75 @@
         </div>
       </div>
 
-      <div class="grid-4" style="margin-bottom:20px">
-        <div class="card"><div class="card-label">KOSPI</div><div class="card-value">2,648.24</div><div class="card-change up">▲ 32.8 (+1.24%)</div></div>
-        <div class="card"><div class="card-label">KOSDAQ</div><div class="card-value">773.18</div><div class="card-change down">▼ 2.4 (−0.31%)</div></div>
-        <div class="card"><div class="card-label">거래대금</div><div class="card-value" style="font-size:20px">8.4조</div><div class="card-change" style="color:var(--text3)">전일比 +12%</div></div>
-        <div class="card"><div class="card-label">외국인 순매수</div><div class="card-value" style="font-size:20px">+3,284억</div><div class="card-change up">▲ 매수우위</div></div>
+      <!-- 지수 요약 카드 -->
+      <div class="grid-4" style="margin-bottom:12px">
+        <div class="card">
+          <div class="card-label">KOSPI</div>
+          <div class="card-value" id="dom-kospi-val">—</div>
+          <div class="card-change" id="dom-kospi-chg" style="color:var(--text3)">로딩중...</div>
+        </div>
+        <div class="card">
+          <div class="card-label">KOSDAQ</div>
+          <div class="card-value" id="dom-kosdaq-val">—</div>
+          <div class="card-change" id="dom-kosdaq-chg" style="color:var(--text3)">로딩중...</div>
+        </div>
+        <div class="card">
+          <div class="card-label">거래대금 <span style="font-size:9px;color:var(--text3)">KOSPI</span></div>
+          <div class="card-value" id="dom-tr-val" style="font-size:18px">—</div>
+          <div class="card-change" id="dom-tr-sub" style="color:var(--text3)">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">외국인 순매수</div>
+          <div class="card-value" id="dom-frgn-val" style="font-size:18px">—</div>
+          <div class="card-change" id="dom-frgn-sub" style="color:var(--text3)">—</div>
+        </div>
+      </div>
+
+      <!-- 시장 수급 동향 -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="section-title">시장 수급 동향 <small>당일 누계 · KOSPI</small></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:14px">
+          <!-- 외국인 -->
+          <div>
+            <div style="font-size:10px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px">외국인</div>
+            <div id="mkt-frgn-qty" style="font-family:var(--font-mono);font-size:16px;font-weight:500">—</div>
+            <div id="mkt-frgn-amt" style="font-size:11px;color:var(--text3);margin-top:3px">—</div>
+          </div>
+          <!-- 기관 합계 + 세부 -->
+          <div>
+            <div style="font-size:10px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px">기관 합계</div>
+            <div id="mkt-orgn-qty" style="font-family:var(--font-mono);font-size:16px;font-weight:500">—</div>
+            <div id="mkt-orgn-amt" style="font-size:11px;color:var(--text3);margin-top:3px">—</div>
+            <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:grid;gap:5px">
+              <div style="display:flex;justify-content:space-between;font-size:11px">
+                <span style="color:var(--text3)">금융투자</span>
+                <span id="mkt-scrt" style="font-family:var(--font-mono)">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px">
+                <span style="color:var(--text3)">투자신탁</span>
+                <span id="mkt-ivtr" style="font-family:var(--font-mono)">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px">
+                <span style="color:var(--text3)">연기금</span>
+                <span id="mkt-mrfn" style="font-family:var(--font-mono)">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px">
+                <span style="color:var(--text3)">사모펀드</span>
+                <span id="mkt-pe" style="font-family:var(--font-mono)">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px">
+                <span style="color:var(--text3)">기타기관</span>
+                <span id="mkt-etc" style="font-family:var(--font-mono)">—</span>
+              </div>
+            </div>
+          </div>
+          <!-- 개인 -->
+          <div>
+            <div style="font-size:10px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px">개인</div>
+            <div id="mkt-prsn-qty" style="font-family:var(--font-mono);font-size:16px;font-weight:500">—</div>
+            <div id="mkt-prsn-amt" style="font-size:11px;color:var(--text3);margin-top:3px">—</div>
+          </div>
+        </div>
       </div>
 
       <div class="card" style="margin-bottom:20px">
@@ -1709,6 +1773,124 @@ function setTdStatus(msg, color) {
 function fmtKrw(n)  { return parseInt(n).toLocaleString('ko-KR'); }
 function fmtUsd(n)  { return '$' + parseFloat(n).toFixed(2); }
 function fmtPct(n)  { return (parseFloat(n) >= 0 ? '▲ ' : '▼ ') + Math.abs(parseFloat(n)).toFixed(2) + '%'; }
+// 주식 수량·금액 포맷 (억/조)
+function fmtBil(n, unit='주') {
+  const v = parseInt(n || 0);
+  const abs = Math.abs(v);
+  const sign = v >= 0 ? '+' : '-';
+  let str;
+  if (abs >= 1e12) str = sign + (abs/1e12).toFixed(1) + '조';
+  else if (abs >= 1e8) str = sign + (abs/1e8).toFixed(0) + '억';
+  else if (abs >= 1e4) str = sign + (abs/1e4).toFixed(0) + '만';
+  else str = (v >= 0 ? '+' : '') + abs.toLocaleString('ko-KR');
+  return str + (unit ? ' ' + unit : '');
+}
+function fmtInvQty(n) {
+  const v = parseInt(n || 0);
+  const abs = Math.abs(v);
+  const sign = v >= 0 ? '▲ +' : '▼ -';
+  if (abs >= 1e6) return sign + (abs/1e6).toFixed(1) + 'M주';
+  if (abs >= 1e3) return sign + (abs/1e3).toFixed(0) + 'K주';
+  return sign + abs.toLocaleString('ko-KR') + '주';
+}
+function fmtInvAmt(n) {
+  const v = parseInt(n || 0);
+  const abs = Math.abs(v);
+  const sign = v >= 0 ? '+' : '-';
+  if (abs >= 1e12) return sign + (abs/1e12).toFixed(1) + '조원';
+  if (abs >= 1e8)  return sign + (abs/1e8).toFixed(0) + '억원';
+  return sign + abs.toLocaleString('ko-KR') + '원';
+}
+
+// ── 국내 탭 지수 카드 + 수급 업데이트 ──
+function updateDomesticMarket(indexData, investorRows) {
+  // KOSPI 카드
+  if (indexData?.kospi) {
+    const kp = indexData.kospi;
+    const price = parseFloat(kp.bstp_nmix_prpr || 0);
+    const pct   = parseFloat(kp.bstp_nmix_prdy_ctrt || 0);
+    const chg   = parseFloat(kp.bstp_nmix_prdy_vrss || 0);
+    const up    = pct >= 0;
+    const vEl = document.getElementById('dom-kospi-val');
+    const cEl = document.getElementById('dom-kospi-chg');
+    if (vEl) vEl.textContent = parseInt(price).toLocaleString('ko-KR');
+    if (cEl) {
+      cEl.textContent = (up?'▲ ':' ▼ ') + Math.abs(chg).toLocaleString('ko-KR') + ' (' + Math.abs(pct).toFixed(2) + '%)';
+      cEl.className   = 'card-change ' + (up ? 'up' : 'down');
+    }
+    // 거래대금
+    const trAmt = parseInt(kp.acml_tr_pbmn || 0);
+    if (trAmt > 0) {
+      const vd = document.getElementById('dom-tr-val');
+      const vs = document.getElementById('dom-tr-sub');
+      if (vd) vd.textContent = trAmt >= 1e12 ? (trAmt/1e12).toFixed(1) + '조' : (trAmt/1e8).toFixed(0) + '억';
+      if (vs) vs.textContent = '누적 거래대금';
+    }
+  }
+  // KOSDAQ 카드
+  if (indexData?.kosdaq) {
+    const kd = indexData.kosdaq;
+    const price = parseFloat(kd.bstp_nmix_prpr || 0);
+    const pct   = parseFloat(kd.bstp_nmix_prdy_ctrt || 0);
+    const chg   = parseFloat(kd.bstp_nmix_prdy_vrss || 0);
+    const up    = pct >= 0;
+    const vEl = document.getElementById('dom-kosdaq-val');
+    const cEl = document.getElementById('dom-kosdaq-chg');
+    if (vEl) vEl.textContent = parseInt(price).toLocaleString('ko-KR');
+    if (cEl) {
+      cEl.textContent = (up?'▲ ':' ▼ ') + Math.abs(chg).toLocaleString('ko-KR') + ' (' + Math.abs(pct).toFixed(2) + '%)';
+      cEl.className   = 'card-change ' + (up ? 'up' : 'down');
+    }
+  }
+
+  // 투자자 수급
+  if (!investorRows?.length) return;
+  const row = investorRows[0]; // 당일 데이터 (가장 최신)
+  if (!row) return;
+
+  // 외국인 카드 상단
+  const frgnQty = parseInt(row.frgn_ntby_qty || 0);
+  const frgnEl  = document.getElementById('dom-frgn-val');
+  const frgnSub = document.getElementById('dom-frgn-sub');
+  if (frgnEl) {
+    frgnEl.textContent = frgnQty >= 0 ? '+' + frgnQty.toLocaleString('ko-KR') + '주' : frgnQty.toLocaleString('ko-KR') + '주';
+    frgnEl.style.color = frgnQty >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+  if (frgnSub) {
+    frgnSub.textContent = frgnQty >= 0 ? '▲ 매수우위' : '▼ 매도우위';
+    frgnSub.style.color = frgnQty >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+
+  // 수급 섹션 상세
+  const setInv = (qId, aId, qty, amt) => {
+    const qEl = document.getElementById(qId);
+    const aEl = document.getElementById(aId);
+    if (qEl) {
+      qEl.textContent = fmtInvQty(qty);
+      qEl.style.color = parseInt(qty||0) >= 0 ? 'var(--green)' : 'var(--red)';
+    }
+    if (aEl && amt !== undefined) {
+      aEl.textContent = fmtInvAmt(amt);
+      aEl.style.color = parseInt(amt||0) >= 0 ? 'var(--green)' : 'var(--red)';
+    }
+  };
+  const setSub = (id, qty) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const v = parseInt(qty || 0);
+    el.textContent = fmtInvQty(qty);
+    el.style.color = v >= 0 ? 'var(--green)' : 'var(--red)';
+  };
+
+  setInv('mkt-frgn-qty', 'mkt-frgn-amt', row.frgn_ntby_qty, row.frgn_ntby_tr_pbmn);
+  setInv('mkt-orgn-qty', 'mkt-orgn-amt', row.orgn_ntby_qty, row.orgn_ntby_tr_pbmn);
+  setInv('mkt-prsn-qty', 'mkt-prsn-amt', row.prsn_ntby_qty, row.prsn_ntby_tr_pbmn);
+  setSub('mkt-scrt', row.scrt_ntby_qty);   // 금융투자(증권)
+  setSub('mkt-ivtr', row.ivtr_ntby_qty);   // 투자신탁
+  setSub('mkt-mrfn', row.mrfn_ntby_qty);   // 연기금
+  setSub('mkt-pe',   row.pe_fund_ntby_qty); // 사모펀드
+  setSub('mkt-etc',  row.etc_orgt_ntby_qty); // 기타기관
+}
 function fmtMktCap(v) {
   if (!v) return '—';
   if (v >= 1e12) return '$' + (v/1e12).toFixed(2) + 'T';
@@ -1812,8 +1994,18 @@ function connectSSE() {
   } catch(e) { console.error('[SSE] 연결 실패:', e.message); }
 }
 
-function applySSEData({ ts, index, krQuotes, usQuotes }) {
-  // 지수 카드 업데이트
+async function kisMarketInvestor() {
+  try {
+    const r = await fetch(`${BACKEND_URL}/api/market-investor`);
+    return r.ok ? await r.json() : [];
+  } catch(e) { return []; }
+}
+
+function applySSEData({ ts, index, krQuotes, usQuotes, marketInvestor }) {
+  // 국내 탭 지수 카드 + 수급 동향 업데이트
+  updateDomesticMarket(index, marketInvestor);
+
+  // 대시보드 지수 카드 업데이트
   if (index?.kospi) {
     const price = parseFloat(index.kospi.bstp_nmix_prpr);
     const pct   = parseFloat(index.kospi.bstp_nmix_prdy_ctrt);
@@ -1877,11 +2069,15 @@ async function fetchMarketData() {
     useKIS ? kisIndex() : Promise.resolve(null),
   ]);
 
-  // ── 2단계: 주식 시세는 병렬 백그라운드 (서버 캐시로 이미 빠름) ──
-  const [kisQData, kisUsData] = await Promise.all([
-    useKIS ? kisQuotes(krCodes)   : Promise.resolve([]),
-    useKIS ? kisUsQuotes(US_SYMS) : Promise.resolve([]),
+  // ── 2단계: 주식 시세 + 시장 수급 병렬 ──
+  const [kisQData, kisUsData, mktInvRows] = await Promise.all([
+    useKIS ? kisQuotes(krCodes)        : Promise.resolve([]),
+    useKIS ? kisUsQuotes(US_SYMS)      : Promise.resolve([]),
+    useKIS ? kisMarketInvestor()       : Promise.resolve([]),
   ]);
+
+  // 국내 탭 카드 + 수급 업데이트
+  if (useKIS) updateDomesticMarket(kisIdxData, mktInvRows);
 
   const kisMap = {};
   (kisQData || []).forEach(({ code, q }) => { if (q) kisMap[code] = parseKIS(q); });
