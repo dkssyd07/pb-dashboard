@@ -200,5 +200,25 @@ app.get('/api/chart/us/:symbol', async (req, res) => {
   }
 });
 
+// ── 투자자별 매매동향 ──
+app.get('/api/investor/kr/:code', async (req, res) => {
+  try {
+    const token = await getToken();
+    const result = await kisReq(() =>
+      axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-investor`, {
+        headers: h(token, 'FHKST01010900'),
+        params:  { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: req.params.code }
+      }).then(r => r.data.output || []).catch(e => {
+        console.error(`[investor/${req.params.code}]`, e.response?.status);
+        return [];
+      })
+    );
+    res.json(result);
+  } catch (e) {
+    console.error('[/api/investor/kr]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`EGY API server running on :${PORT}`));
