@@ -2426,16 +2426,48 @@ async function renderStockCharts(symbol, range, isKr) {
   document.getElementById('modal-charts').style.display  = 'none';
 
   const yfSym = isKr ? (symbol.includes('.') ? symbol : symbol + '.KS') : symbol;
+  const code  = symbol.replace('.KS','').replace('.KQ','');
+
+  // ① 이미 로드된 데이터 즉시 표시 (Yahoo Finance 요청 없이)
+  let localQ    = null;
+  let localName = null;
+  if (isKr) {
+    const found = _krStockData.find(d => d.code === code);
+    if (found?.q) { localQ = found.q; localName = found.name; }
+  } else {
+    const found = _usStockData.find(d => d.sym === symbol);
+    if (found?.q) { localQ = found.q; localName = found.name; }
+  }
+
+  if (localQ) {
+    const up = localQ.regularMarketChangePercent >= 0;
+    document.getElementById('modal-ticker').textContent = symbol;
+    document.getElementById('modal-name').textContent   = localName || symbol;
+    document.getElementById('modal-price').textContent  = isKr ? fmtKrw(localQ.regularMarketPrice) : fmtUsd(localQ.regularMarketPrice);
+    document.getElementById('modal-change').textContent =
+      (up?'▲':'▼') + ' ' + (isKr ? fmtKrw(Math.abs(localQ.regularMarketChange||0)) : '$'+Math.abs(localQ.regularMarketChange||0).toFixed(2)) +
+      ' (' + fmtPct(localQ.regularMarketChangePercent) + ')';
+    document.getElementById('modal-change').style.color = up ? 'var(--green)' : 'var(--red)';
+    document.getElementById('modal-52h').textContent    = localQ.fiftyTwoWeekHigh ? (isKr ? fmtKrw(localQ.fiftyTwoWeekHigh) : fmtUsd(localQ.fiftyTwoWeekHigh)) : '—';
+    document.getElementById('modal-52l').textContent    = localQ.fiftyTwoWeekLow  ? (isKr ? fmtKrw(localQ.fiftyTwoWeekLow)  : fmtUsd(localQ.fiftyTwoWeekLow))  : '—';
+    document.getElementById('modal-mktcap').textContent = fmtMktCap(localQ.marketCap);
+    document.getElementById('modal-per').textContent    = localQ.trailingPE ? parseFloat(localQ.trailingPE).toFixed(1) : '—';
+    document.getElementById('modal-stats').style.display = 'grid';
+  }
+
+  // ② 차트 데이터 백엔드에서 (캐시 있으면 빠름) + 미보유 종목은 YF 병렬 조회
+  const needYF = !localQ;
   const [qmap, kisChartRows, kisUsChartRows] = await Promise.all([
-    fetchYFQuote(yfSym),
-    (isKr && BACKEND_URL)  ? kisChart(symbol.replace('.KS','').replace('.KQ',''), range) : Promise.resolve(null),
-    (!isKr && BACKEND_URL) ? kisUsChart(symbol, range)                                    : Promise.resolve(null),
+    needYF ? fetchYFQuote(yfSym) : Promise.resolve({}),
+    (isKr && BACKEND_URL)  ? kisChart(code, range)     : Promise.resolve(null),
+    (!isKr && BACKEND_URL) ? kisUsChart(symbol, range) : Promise.resolve(null),
   ]);
-  const q = qmap[yfSym] || qmap[symbol];
 
   document.getElementById('modal-loading').style.display = 'none';
 
-  if (q) {
+  // 로컬 데이터 없으면 YF 결과로 채움
+  const q = localQ || qmap[yfSym] || qmap[symbol];
+  if (!localQ && q) {
     const up = q.regularMarketChangePercent >= 0;
     document.getElementById('modal-ticker').textContent = q.symbol || symbol;
     document.getElementById('modal-name').textContent   = q.longName || q.shortName || symbol;
