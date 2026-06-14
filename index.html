@@ -1630,7 +1630,10 @@ async function kisChart(code, range = '1mo') {
 }
 
 // 해외 주식 거래소 코드
-const US_EXCD = {NVDA:'NAS',AAPL:'NAS',MSFT:'NAS',GOOGL:'NAS',TSLA:'NAS',META:'NAS',AMZN:'NAS'};
+const US_EXCD = {
+  NVDA:'NAS',AAPL:'NAS',MSFT:'NAS',GOOGL:'NAS',TSLA:'NAS',META:'NAS',AMZN:'NAS',
+  AMD:'NAS',AVGO:'NAS',MRNA:'NAS',JNJ:'NYS',PFE:'NYS',XOM:'NYS',JPM:'NYS'
+};
 
 async function kisUsQuotes(syms) {
   if (!BACKEND_URL) return [];
@@ -1794,16 +1797,18 @@ let _usStockData  = [];   // {sym, name, sector, q}[]
 async function fetchMarketData() {
   setTdStatus('실시간 데이터 로딩 중...', 'var(--text3)');
   const useKIS = !!BACKEND_URL;
-
   const krCodes = KR_SYMS.map(s => s.replace('.KS',''));
-  const [
-    yfQuotes, kospiC, kosdaqC, spxC, ixicC,
-    kisIdxData, kisQData, kisUsData
-  ] = await Promise.all([
+
+  // ── 1단계: 지수 + 미니차트 데이터를 먼저 표시 ──
+  const [yfQuotes, kospiC, kosdaqC, spxC, ixicC, kisIdxData] = await Promise.all([
     fetchYFQuote(['^KS11','^KQ11','^GSPC','^IXIC']),
     fetchYFChart('^KS11','1mo'), fetchYFChart('^KQ11','1mo'),
     fetchYFChart('^GSPC','1mo'), fetchYFChart('^IXIC','1mo'),
-    useKIS ? kisIndex()           : Promise.resolve(null),
+    useKIS ? kisIndex() : Promise.resolve(null),
+  ]);
+
+  // ── 2단계: 주식 시세는 병렬 백그라운드 (서버 캐시로 이미 빠름) ──
+  const [kisQData, kisUsData] = await Promise.all([
     useKIS ? kisQuotes(krCodes)   : Promise.resolve([]),
     useKIS ? kisUsQuotes(US_SYMS) : Promise.resolve([]),
   ]);
