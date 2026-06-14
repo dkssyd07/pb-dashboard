@@ -1458,8 +1458,10 @@ auth.onAuthStateChanged(async user => {
     document.getElementById('user-info').textContent = user.email;
 
     fetchMarketData();
+    connectSSE(); // SSE 스트림 연결 (자동 실시간 업데이트)
   } else {
     currentUser = null;
+    if (_sse) { try { _sse.close(); } catch(e) {} _sse = null; }
     document.getElementById('auth-overlay').style.display = 'flex';
     document.getElementById('user-info').style.display = 'none';
     setTdStatus('로그인 후 자동 연결', 'var(--text3)');
@@ -1793,6 +1795,74 @@ let _usSector  = 'all';
 let _usSort    = 'default';
 let _krStockData  = [];   // {sym, code, name, sector, q}[]
 let _usStockData  = [];   // {sym, name, sector, q}[]
+
+// ── SSE 실시간 스트림 ──
+let _sse = null;
+
+function connectSSE() {
+  if (!BACKEND_URL) return;
+  if (_sse) { try { _sse.close(); } catch(e) {} _sse = null; }
+  try {
+    _sse = new EventSource(`${BACKEND_URL}/api/events`);
+    _sse.onopen = () => console.log('[SSE] 연결됨');
+    _sse.onmessage = e => {
+      try { const d = JSON.parse(e.data); if (d && d.ts) applySSEData(d); } catch(err) {}
+    };
+    _sse.onerror = () => setTdStatus('● 재연결 중...', 'var(--text3)');
+  } catch(e) { console.error('[SSE] 연결 실패:', e.message); }
+}
+
+function applySSEData({ ts, index, krQuotes, usQuotes }) {
+  // 지수 카드 업데이트
+  if (index?.kospi) {
+    const price = parseFloat(index.kospi.bstp_nmix_prpr);
+    const pct   = parseFloat(index.kospi.bstp_nmix_prdy_ctrt);
+    const el = document.getElementById('kospi-val');
+    const ec = document.getElementById('kospi-chg');
+    if (el) el.textContent = parseInt(price).toLocaleString('ko-KR');
+    if (ec) { ec.textContent = fmtPct(pct); ec.className = `card-change ${pct >= 0 ? 'up' : 'down'}`; }
+  }
+  if (index?.kosdaq) {
+    const price = parseFloat(index.kosdaq.bstp_nmix_prpr);
+    const pct   = parseFloat(index.kosdaq.bstp_nmix_prdy_ctrt);
+    const el = document.getElementById('kosdaq-val');
+    const ec = document.getElementById('kosdaq-chg');
+    if (el) el.textContent = parseInt(price).toLocaleString('ko-KR');
+    if (ec) { ec.textContent = fmtPct(pct); ec.className = `card-change ${pct >= 0 ? 'up' : 'down'}`; }
+  }
+  // 국내 종목 테이블
+  if (krQuotes?.length) {
+    const m = {};
+    krQuotes.forEach(({ code, q }) => { if (q) m[code] = parseKIS(q); });
+    _krStockData = KR_SYMS.map(sym => ({
+      sym, code: sym.replace('.KS',''), name: KR_NAMES[sym]||sym,
+      sector: KR_SECTOR_MAP[sym]||'기타', q: m[sym.replace('.KS','')] || null
+    }));
+    renderKrTable();
+    // TOP5도 업데이트
+    const krTop5 = document.getElementById('kr-top5-table');
+    if (krTop5) {
+      let rows = '<tr><th>종목</th><th>종목명</th><th>현재가</th><th>등락률</th></tr>';
+      _krStockData.slice(0, 5).forEach(({code, name, q}) => {
+        if (!q) return;
+        rows += `<tr><td class="mono">${code}</td><td>${name}</td><td class="mono">${fmtKrw(q.regularMarketPrice)}</td><td class="${q.regularMarketChangePercent >= 0 ? 'up' : 'down'}">${fmtPct(q.regularMarketChangePercent)}</td></tr>`;
+      });
+      krTop5.innerHTML = rows;
+    }
+  }
+  // 해외 종목 테이블
+  if (usQuotes?.length) {
+    const m = {};
+    usQuotes.forEach(({ sym, q }) => { if (q) m[sym] = parseKISUs(q); });
+    _usStockData = US_SYMS.map(sym => ({
+      sym, name: US_NAMES[sym]||sym,
+      sector: US_SECTOR_MAP[sym]||'기타', q: m[sym] || null
+    }));
+    renderUsTable();
+  }
+  const t = new Date(ts).toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  setTdStatus(`● LIVE  ${t} 자동 업데이트`, 'var(--green)');
+}
 
 async function fetchMarketData() {
   setTdStatus('실시간 데이터 로딩 중...', 'var(--text3)');

@@ -36,7 +36,7 @@ function h(token, trId) {
   };
 }
 
-// ── 전역 KIS 요청 큐 (100ms 간격 — 초당 10건, KIS 한도 20건/초 이내) ──
+// ── 전역 KIS 요청 큐 (100ms 간격) ──
 let _kisQueue = Promise.resolve();
 function kisReq(fn) {
   _kisQueue = _kisQueue.then(async () => {
@@ -49,9 +49,9 @@ function kisReq(fn) {
 
 // ── 응답 캐시 ──
 const _cache = {};
-const TTL_QUOTE = 60  * 1000;   // 시세: 60초
-const TTL_CHART = 10  * 60 * 1000; // 차트: 10분
-const TTL_INV   = 60  * 1000;   // 투자자: 60초
+const TTL_QUOTE = 90  * 1000;
+const TTL_CHART = 10  * 60 * 1000;
+const TTL_INV   = 60  * 1000;
 
 function cGet(key, ttl) {
   const e = _cache[key];
@@ -63,8 +63,63 @@ function cSet(key, data) {
   return data;
 }
 
+// ── SSE 클라이언트 관리 ──
+const sseClients = new Set();
+
+function pushToClients(snapshot) {
+  if (!sseClients.size) return;
+  const msg = `data: ${JSON.stringify(snapshot)}\n\n`;
+  for (const res of sseClients) {
+    try { res.write(msg); }
+    catch(e) { sseClients.delete(res); }
+  }
+  console.log(`[SSE] ${sseClients.size}명에게 푸시 완료`);
+}
+
+function buildSnapshot() {
+  const krKey = 'kr_' + KR_WARM.join(',');
+  const usKey = 'us_' + US_WARM.map(s => s.sym).join(',');
+  return {
+    ts:       Date.now(),
+    index:    cGet('index_kr', TTL_QUOTE * 2),
+    krQuotes: cGet(krKey, TTL_QUOTE * 2) || [],
+    usQuotes: cGet(usKey, TTL_QUOTE * 2) || [],
+  };
+}
+
+// ── SSE 스트림 엔드포인트 ──
+app.get('/api/events', (req, res) => {
+  res.setHeader('Content-Type',  'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection',    'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // nginx 버퍼링 비활성화 (Render 필요)
+
+  // 연결 즉시 캐시된 데이터 전송
+  const snap = buildSnapshot();
+  if (snap.index || snap.krQuotes.length) {
+    res.write(`data: ${JSON.stringify(snap)}\n\n`);
+  } else {
+    res.write(`: 데이터 준비 중...\n\n`);
+  }
+
+  sseClients.add(res);
+  console.log(`[SSE] 연결됨 (총 ${sseClients.size}명)`);
+
+  // 25초마다 heartbeat (Render 타임아웃 방지)
+  const hb = setInterval(() => {
+    try { res.write(': heartbeat\n\n'); }
+    catch(e) { clearInterval(hb); sseClients.delete(res); }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(hb);
+    sseClients.delete(res);
+    console.log(`[SSE] 연결 해제 (총 ${sseClients.size}명)`);
+  });
+});
+
 // Health check
-app.get('/health', (_, res) => res.json({ ok: true, ts: Date.now() }));
+app.get('/health', (_, res) => res.json({ ok: true, ts: Date.now(), clients: sseClients.size }));
 
 // ── KOSPI / KOSDAQ 지수 ──
 app.get('/api/index/kr', async (req, res) => {
@@ -91,7 +146,7 @@ app.get('/api/index/kr', async (req, res) => {
   }
 });
 
-// ── 국내 주식 현재가 배치 조회 ──
+// ── 국내 주식 현재가 배치 ──
 app.post('/api/quotes/kr', async (req, res) => {
   const codes = req.body.codes || [];
   if (!codes.length) return res.json([]);
@@ -99,22 +154,22 @@ app.post('/api/quotes/kr', async (req, res) => {
   const hit = cGet(key, TTL_QUOTE);
   if (hit) return res.json(hit);
   try {
-    const token = await getToken();
+    const token   = await getToken();
     const results = [];
     for (const code of codes) {
-      const result = await kisReq(async () => {
+      const r = await kisReq(async () => {
         try {
-          const r = await axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-price`, {
+          const res = await axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-price`, {
             headers: h(token, 'FHKST01010100'),
             params:  { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: code }
           });
-          return { code, q: r.data.output };
+          return { code, q: res.data.output };
         } catch(e) {
-          console.error(`[quote/${code}]`, e.response?.status, JSON.stringify(e.response?.data));
+          console.error(`[quote/${code}]`, e.response?.status);
           return { code, q: null };
         }
       });
-      results.push(result);
+      results.push(r);
     }
     res.json(cSet(key, results));
   } catch (e) {
@@ -148,8 +203,7 @@ app.get('/api/chart/kr/:code', async (req, res) => {
         }
       }
     );
-    const rows = (data.output2 || []).reverse();
-    res.json(cSet(key, rows));
+    res.json(cSet(key, (data.output2 || []).reverse()));
   } catch (e) {
     const body = e.response?.data;
     console.error('[/api/chart/kr]', e.response?.status, JSON.stringify(body));
@@ -166,10 +220,7 @@ app.get('/api/quote/kr/:code', async (req, res) => {
     const token = await getToken();
     const { data } = await axios.get(
       `${KIS}/uapi/domestic-stock/v1/quotations/inquire-price`,
-      {
-        headers: h(token, 'FHKST01010100'),
-        params:  { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: req.params.code }
-      }
+      { headers: h(token, 'FHKST01010100'), params: { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: req.params.code } }
     );
     res.json(cSet(key, data.output || {}));
   } catch (e) {
@@ -181,26 +232,26 @@ app.get('/api/quote/kr/:code', async (req, res) => {
 app.post('/api/quotes/us', async (req, res) => {
   const stocks = req.body.stocks || [];
   if (!stocks.length) return res.json([]);
-  const key = 'us_' + [...stocks].map(s=>s.sym).sort().join(',');
+  const key = 'us_' + [...stocks].map(s => s.sym).sort().join(',');
   const hit = cGet(key, TTL_QUOTE);
   if (hit) return res.json(hit);
   try {
-    const token = await getToken();
+    const token   = await getToken();
     const results = [];
     for (const { sym, excd } of stocks) {
-      const result = await kisReq(async () => {
+      const r = await kisReq(async () => {
         try {
-          const r = await axios.get(`${KIS}/uapi/overseas-price/v1/quotations/price`, {
+          const res = await axios.get(`${KIS}/uapi/overseas-price/v1/quotations/price`, {
             headers: h(token, 'HHDFS00000300'),
             params:  { AUTH: '', EXCD: excd, SYMB: sym }
           });
-          return { sym, excd, q: r.data.output };
+          return { sym, excd, q: res.data.output };
         } catch(e) {
-          console.error(`[us-quote/${sym}]`, e.response?.status, JSON.stringify(e.response?.data));
+          console.error(`[us-quote/${sym}]`, e.response?.status);
           return { sym, excd, q: null };
         }
       });
-      results.push(result);
+      results.push(r);
     }
     res.json(cSet(key, results));
   } catch (e) {
@@ -220,10 +271,7 @@ app.get('/api/chart/us/:symbol', async (req, res) => {
     const token = await getToken();
     const { data } = await axios.get(
       `${KIS}/uapi/overseas-price/v1/quotations/dailyprice`,
-      {
-        headers: h(token, 'HHDFS76240000'),
-        params: { AUTH: '', EXCD: excd, SYMB: req.params.symbol, GUBN: '0', BYMD: '', MODP: '1' }
-      }
+      { headers: h(token, 'HHDFS76240000'), params: { AUTH: '', EXCD: excd, SYMB: req.params.symbol, GUBN: '0', BYMD: '', MODP: '1' } }
     );
     res.json(cSet(key, (data.output2 || []).reverse()));
   } catch (e) {
@@ -238,7 +286,7 @@ app.get('/api/investor/kr/:code', async (req, res) => {
   const hit = cGet(key, TTL_INV);
   if (hit) return res.json(hit);
   try {
-    const token = await getToken();
+    const token  = await getToken();
     const result = await kisReq(() =>
       axios.get(`${KIS}/uapi/domestic-stock/v1/quotations/inquire-investor`, {
         headers: h(token, 'FHKST01010900'),
@@ -255,7 +303,7 @@ app.get('/api/investor/kr/:code', async (req, res) => {
   }
 });
 
-// ── 백그라운드 캐시 예열 (서버 시작 후 + 매 55초마다) ──
+// ── 백그라운드 캐시 예열 + SSE 푸시 ──
 const KR_WARM = ['005930','000660','035420','051910','006400','035720','028260','003550','207940','005380','105560','005490'];
 const US_WARM = [
   {sym:'NVDA',excd:'NAS'},{sym:'AMD',excd:'NAS'},{sym:'AVGO',excd:'NAS'},
@@ -267,7 +315,7 @@ const US_WARM = [
 
 async function warmCache() {
   try {
-    console.log('[WARM] 캐시 예열 시작...');
+    console.log('[WARM] 예열 시작...');
     const token = await getToken();
 
     // 지수
@@ -285,7 +333,7 @@ async function warmCache() {
     );
     cSet('index_kr', { kospi, kosdaq });
 
-    // 국내 시세 배치
+    // 국내 시세
     const krResults = [];
     for (const code of KR_WARM) {
       const r = await kisReq(async () => {
@@ -301,7 +349,7 @@ async function warmCache() {
     }
     cSet('kr_' + KR_WARM.join(','), krResults);
 
-    // 해외 시세 배치
+    // 해외 시세
     const usResults = [];
     for (const { sym, excd } of US_WARM) {
       const r = await kisReq(async () => {
@@ -315,9 +363,14 @@ async function warmCache() {
       });
       usResults.push(r);
     }
-    cSet('us_' + US_WARM.map(s=>s.sym).join(','), usResults);
+    cSet('us_' + US_WARM.map(s => s.sym).join(','), usResults);
 
-    console.log('[WARM] 완료 — KR', krResults.filter(r=>r.q).length, '/ US', usResults.filter(r=>r.q).length);
+    const krOk = krResults.filter(r => r.q).length;
+    const usOk = usResults.filter(r => r.q).length;
+    console.log(`[WARM] 완료 — KR ${krOk}/${KR_WARM.length}, US ${usOk}/${US_WARM.length}`);
+
+    // 연결된 모든 클라이언트에 즉시 푸시
+    pushToClients(buildSnapshot());
   } catch (e) {
     console.error('[WARM] 오류:', e.message);
   }
@@ -326,8 +379,6 @@ async function warmCache() {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`EGY API server running on :${PORT}`);
-  // 서버 시작 3초 후 첫 예열 (토큰 발급 여유)
-  setTimeout(warmCache, 3000);
-  // 이후 55초마다 반복 (캐시 TTL 60초보다 5초 빠르게)
-  setInterval(warmCache, 55 * 1000);
+  setTimeout(warmCache, 3000);        // 시작 3초 후 첫 예열
+  setInterval(warmCache, 55 * 1000);  // 이후 55초마다 자동 갱신 + SSE 푸시
 });
